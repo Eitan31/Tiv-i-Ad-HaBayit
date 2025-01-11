@@ -326,8 +326,6 @@ body {
     .details {
         text-align: center; /* טקסט בפירוט ממורכז */
     }
-    #auth-button {
-    display: none !important; /* מסתיר את הכפתורים */
-}
+
 
 }
