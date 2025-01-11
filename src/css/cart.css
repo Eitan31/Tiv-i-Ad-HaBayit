@@ -61,15 +61,17 @@
 
 /* חלון עגלת קניות */
 #shopping-cart {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    justify-content: center;
+    display: flex; /* עיצוב הרשימה כ-Flexbox */
+    flex-wrap: wrap; /* מאפשר לעבור לשורות נוספות אם אין מקום */
+    justify-content: flex-start; /* מוודא שהפריטים מסודרים מימין */
+    align-items: flex-start; /* מיישר את הפריטים בגובה העליון */
+    gap: 15px; /* רווח בין פריטים */
+    direction: rtl; /* מגדיר סדר מימין לשמאל */
     padding: 20px;
-    margin-top: 20px;
 }
 
 
+/* עיצוב האובייקטים */
 .cart-item {
     border: 2px solid #fb8500;
     border-radius: 4px;
@@ -80,10 +82,10 @@
     justify-content: space-between;
     align-items: center;
     box-sizing: border-box;
-    height: 200px; /* ייתכן ותרצה להגדיל את הגובה כדי להכיל את כל התוכן */
-    width: 100%;
-    max-width: 180px;
+    height: 200px;
+    width: 180px; /* גודל קבוע לפריטים */
     position: relative;
+    background-color: #fff; /* רקע לבן */
 }
 
 /* גודל הטקסט בכותרת */
