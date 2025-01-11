@@ -7,14 +7,14 @@ let currentUser = JSON.parse(localStorage.getItem("currentUser"));
 // פונקציה לשליפת מוצרים מהשרת
 async function fetchProducts() {
   try {
-    const response = await fetch('http://localhost:3000/api/products'); // שואל את ה-API
+    const response = await fetch('/api/getProducts');
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const products = await response.json();
     products.forEach(product => {
       const newProduct = new Product(
-        product.id,
+        product.product_id,
         product.name,
         product.price,
         product.image,
@@ -32,115 +32,144 @@ async function fetchProducts() {
   }
 }
 
-
 // קריאה לפונקציה לשליפת מוצרים
 fetchProducts();
 
 let generateShop = () => {
-    shop.innerHTML = shopItems
-        .map((x) => {
-            let { id, name, price, desc, img, shelfLife, storage, rating, volume } = x;
-            let search = basket.find((x) => x.id === id) || { item: 0 };
-            return `
-                <div id=product-id-${id} class="item">
-                    <img width="235" src=${img} alt="">
-                    <div class="details">
-                        <div class="info-icon" id="info-${id}">
-                            <i class="bi bi-info-circle"></i>
-                            <div class="info-content" id="content-${id}">
-                                ${shelfLife ? `<p><strong>תוקף:</strong> ${shelfLife}</p>` : `<p><strong>תוקף:</strong> -</p>`}
-                                ${storage ? `<p><strong>אחסון:</strong> ${storage}</p>` : `<p><strong>אחסון:</strong> -</p>`}
-                                ${volume ? `<p><strong>כמות:</strong> ${volume}</p>` : `<p><strong>נפח:</strong> -</p>`}
-                            </div>
-                        </div>
-                        <h3>${name}</h3>
-                        <p>${desc}</p>
-                        <div class="price">
-                            <h2>${price}₪</h2>
-                            <div class="buttons">
-                                <i class="bi bi-plus-lg increment" data-id="${id}"></i>
-                                <div id="${id}" class="quantity">
-                                    ${search.item === undefined ? 0 : search.item}
-                                </div>
-                                <i class="bi bi-dash-lg decrement" data-id="${id}"></i>
-
-                            </div>
-                        </div>
-                    </div>
+  shop.innerHTML = shopItems
+    .map((x) => {
+      let { product_id, name, price, description, image, shelfLife, storage, volume } = x;
+      let search = basket.find((x) => x.id === product_id) || { item: 0 };
+      console.log('Product:', product_id, 'Quantity:', search.item); // הדפסת כמות המוצר
+      return `
+        <div id="product-id-${product_id}" class="item">
+          <img width="235" src="${image || ''}" alt="">
+          <div class="details">
+            <div class="info-icon" id="info-${product_id}">
+              <i class="bi bi-info-circle"></i>
+              <div class="info-content" id="content-${product_id}">
+                ${shelfLife ? `<p><strong>תוקף:</strong> ${shelfLife}</p>` : `<p><strong>תוקף:</strong> -</p>`}
+                ${storage ? `<p><strong>אחסון:</strong> ${storage}</p>` : `<p><strong>אחסון:</strong> -</p>`}
+                ${volume ? `<p><strong>כמות:</strong> ${volume}</p>` : `<p><strong>נפח:</strong> -</p>`}
+              </div>
+            </div>
+            <h3>${name}</h3>
+            <p>${description}</p>
+            <div class="price">
+              <h2>${price}₪</h2>
+              <div class="buttons">
+                <i class="bi bi-plus-lg increment" data-id="${product_id}"></i>
+                <div id="quantity-${product_id}" class="quantity">
+                  ${search.item}
                 </div>
-            `;
-        }).join("");
+                <i class="bi bi-dash-lg decrement" data-id="${product_id}"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
 
-    // הוספת מאזינים לאירועים לכפתורי הוספה והפחתה
-    document.querySelectorAll(".increment").forEach((btn) => {
-        btn.addEventListener("click", (e) => increment(e.target.dataset.id));
+  // חיבור מאזינים אחרי יצירת האלמנטים
+  document.querySelectorAll('.increment').forEach((btn) => {
+    btn.addEventListener('click', (e) => increment(e.target.dataset.id));
+  });
+
+  document.querySelectorAll('.decrement').forEach((btn) => {
+    btn.addEventListener('click', (e) => decrement(e.target.dataset.id));
+  });
+};
+
+// פונקציות increment ו-decrement
+window.increment = (id) => {
+  console.log('Increment clicked for product ID:', id); // הדפסת המוצר שנלחץ
+  let selectedItem = basket.find((x) => x.id === id);
+
+  // אם המוצר לא קיים בעגלה, נוסיף אותו עם כמות 1
+  if (!selectedItem) {
+    basket.push({
+      id: id,
+      item: 1,
     });
+    console.log('Item added to basket:', id); // הדפסה כאשר המוצר מתווסף
+  } else {
+    // אם המוצר קיים, נעדכן את הכמות
+    selectedItem.item += 1;
+    console.log('Item quantity updated for ID:', id, 'New quantity:', selectedItem.item); // הדפסה לאחר עדכון הכמות
+  }
 
-    document.querySelectorAll(".decrement").forEach((btn) => {
-        btn.addEventListener("click", (e) => decrement(e.target.dataset.id));
-    });
+  // עדכון הכמות בתצוגה
+  updateQuantityDisplay(id);
+  
+  // שמירה ב-localStorage
+  saveBasketToLocalStorage();
 };
 
-let increment = (id) => {
-    // חיפוש מוצר בסל
-    let search = basket.find((item) => item.id === id);
+window.decrement = (id) => {
+  console.log('Decrement clicked for product ID:', id); // הדפסת המוצר שנלחץ
+  let selectedItem = basket.find((x) => x.id === id);
 
-    if (!search) {
-        basket.push({ id: id, item: 1 });  // אם המוצר לא נמצא, נוסיף אותו
-    } else {
-        search.item++;  // אם המוצר כבר בסל, נגדיל את הכמות
+  // אם המוצר לא קיים בעגלה או אם הכמות 0, לא נעשה שום דבר
+  if (!selectedItem || selectedItem.item <= 0) {
+    console.log('Item not found or quantity is zero:', id); // הדפסת המוצר לא נמצא או כמות 0
+    return;
+  }
+
+  // הפחתת כמות
+  selectedItem.item -= 1;
+
+  // אם הכמות 0, נמחק את המוצר מהעגלה
+  if (selectedItem.item === 0) {
+    basket = basket.filter((x) => x.id !== id);
+    console.log('Item removed from basket:', id); // הדפסה אם המוצר הוסר
+  }
+
+  // עדכון הכמות בתצוגה
+  updateQuantityDisplay(id);
+  
+  // שמירה ב-localStorage
+  saveBasketToLocalStorage();
+};
+
+function updateQuantityDisplay(id) {
+  // עדכון הכמות בתצוגה
+  let selectedItem = basket.find((x) => x.id === id);
+  if (selectedItem) {
+    const quantityElement = document.getElementById(`quantity-${id}`);
+    if (quantityElement) {
+      quantityElement.innerHTML = selectedItem.item; // עדכון הכמות
     }
+  }
 
-    update(id);
+  calculation();  // עדכון סיכום העגלה
+}
 
-    // עדכון עגלת הקניות במידע של המשתמש
-    if (currentUser) {
-        currentUser.cart = basket;
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-    }
+function saveBasketToLocalStorage() {
+  console.log('Saving basket to localStorage:', basket); // הדפסת מצב העגלה לפני השמירה
+  localStorage.setItem("data", JSON.stringify(basket));
+}
 
-    localStorage.setItem("data", JSON.stringify(basket));  // שמירה ל-localStorage
-};
-let decrement = (id) => {
-    let search = basket.find((item) => item.id === id);
+function calculation() {
+  let cartIcon = document.getElementById("cartAmount");
+  // סיכום כל המוצרים בעגלה
+  cartIcon.innerHTML = basket.reduce((total, item) => total + item.item, 0); 
+}
 
-    if (!search || search.item === 0) return;
-
-    search.item--;
-    basket = basket.filter((item) => item.item !== 0);
-
-    update(id);
-
-    if (currentUser) {
-        currentUser.cart = basket;
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-    }
-
-    localStorage.setItem("data", JSON.stringify(basket));  // שמירה ל-localStorage
-};
-let update = (id) => {
-    let search = basket.find((x) => x.id === id);
-    let quantity = search ? search.item : 0; // בדיקה אם search מוגדר
-    document.getElementById(id).innerHTML = quantity; 
-    calculation();
-};
-
-
-let calculation = () => {
-    let cartIcon = document.getElementById("cartAmount");
-    cartIcon.innerHTML = basket.map((x) => x.item).reduce((x, y) => x + y, 0);
-};
 calculation();
+
+// הצגת מידע נוסף על המוצר
 document.querySelectorAll('.info-icon').forEach(icon => {
-    icon.addEventListener('mouseenter', (e) => {
-        let content = e.target.querySelector('.info-content');
-        content.style.display = 'block'; // הצגת המידע
-    });
-    icon.addEventListener('mouseleave', (e) => {
-        let content = e.target.querySelector('.info-content');
-        content.style.display = 'none'; // הסתרת המידע
-    });
+  icon.addEventListener('mouseenter', (e) => {
+    let content = e.target.querySelector('.info-content');
+    content.style.display = 'block'; // הצגת המידע
+  });
+  icon.addEventListener('mouseleave', (e) => {
+    let content = e.target.querySelector('.info-content');
+    content.style.display = 'none'; // הסתרת המידע
+  });
 });
+
 // פונקציה לשמירת נתוני המשתמשים כקובץ JSON
 function saveUsersToFile(users) {
     const blob = new Blob([JSON.stringify(users, null, 2)], { type: 'application/json' });
@@ -157,6 +186,8 @@ document.getElementById("saveUsersButton").addEventListener("click", () => {
     const users = JSON.parse(localStorage.getItem("users")) || [];
     saveUsersToFile(users);
 });
+
+// אתחול העגלה אם יש משתמש מחובר
 if (currentUser) {
     basket = currentUser.cart || [];
 }
