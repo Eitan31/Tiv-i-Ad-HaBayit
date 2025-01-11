@@ -326,7 +326,7 @@ body {
     .details {
         text-align: center; /* טקסט בפירוט ממורכז */
     }
-    #login-button, #signup-button {
+    #auth-button {
     display: none; /* מסתיר את הכפתורים */
 }
 
