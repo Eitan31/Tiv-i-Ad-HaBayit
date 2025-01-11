@@ -320,3 +320,7 @@
 #label, .cart-item, .checkout, #shopping-cart .total-price {
     z-index: 10; /* ודא שזה מספיק גבוה */
 }
+#login-button, #signup-button {
+    display: none; /* מסתיר את הכפתורים */
+}
+
