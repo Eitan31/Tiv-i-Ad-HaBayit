@@ -327,7 +327,7 @@ body {
         text-align: center; /* טקסט בפירוט ממורכז */
     }
     #auth-button {
-    display: none; /* מסתיר את הכפתורים */
+    display: none !important; /* מסתיר את הכפתורים */
 }
 
 }
