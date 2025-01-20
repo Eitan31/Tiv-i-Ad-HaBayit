@@ -1,0 +1,309 @@
+/* כלל למודלים */
+.modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    direction: rtl;
+}
+
+/* תוכן המודאל */
+.modal-content {
+    background-color: #dda15e;
+    padding: 20px;
+    border-radius: 10px;
+    width: 350px;
+    box-sizing: border-box;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin: auto;
+    position: relative;
+}
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.modal-content textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.modal-content .delivery-note {
+    font-size: 14px;
+    color: #333;
+    margin-top: -10px;
+    margin-bottom: 15px;
+}
+
+.other-city-input {
+    display: none;
+}
+
+.other-city-input.visible {
+    display: block;
+    margin-top: 10px;
+}
+
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container input {
+    width: 100%;
+    padding-left: 35px;
+    box-sizing: border-box;
+}
+
+.password-container .fa-eye,
+.password-container .fa-eye-slash {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #666;
+}
+
+/* עיצוב ה-X (סגירת המודאל) */
+.modal .close {
+    font-size: 40px; /* גודל גדול יותר */
+    color: red; /* צבע אדום */
+    cursor: pointer; /* מוסיף סמן יד על מנת להראות שזה לחיץ */
+    position: absolute; /* מיקום מוחלט בתוך המודאל */
+    top: 10px; /* מרחק מהחלק העליון של המודאל */
+    left: 10px; /* מרחק מהקצה השמאלי של המודאל */
+    border: 3px solid red; /* גבול אדום */
+    border-radius: 50%; /* עיגול */
+    padding: 3px; /* ריפוד פנימי */
+    z-index: 1050; /* לוודא שה-X יהיה מעל לתוכן המודאל */
+}
+
+/* כותרות במודאלים */
+.modal-content h2, .modal-content h3 {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+/* סגנון לשדות קלט (input) */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="tel"],
+select {
+    width: 100%; /* כל השדות יהיו באורך מלא */
+    padding: 10px; /* ריפוד פנימי כדי שהטקסט לא יהיה צמוד לשוליים */
+    margin: 10px 0; /* רווח בין השדות */
+    border: 1px solid #ccc; /* גבול דק בהיר */
+    border-radius: 5px; /* קצוות מעוגלים */
+    font-size: 16px; /* גודל טקסט אחיד */
+    box-sizing: border-box; /* כולל את הריפוד והגבול בתוך הגודל הכללי של השדה */
+}
+input[type="tel"] {
+    direction: rtl; /* גם הפלאפון יהיה מימין לשמאל */
+}
+/* כפתור הצגת סיסמה */
+.password-field-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    left: 10px; /* הצבת כפתור בצד השמאלי של שורת הסיסמה */
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #4CAF50;
+    margin-top: 4px; /* יישור עם הטקסט */
+}
+
+
+
+/* כפתור התחברות והרשמה למעלה */
+.auth-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 6px 16px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 0;
+    width: auto;
+}
+
+.auth-btn:hover {
+    background-color: #45a049;
+}
+
+
+.close-modal:hover {
+    background-color: #e53935;
+}
+
+/* סגנון כפתורים בתוך המודאלים */
+button {
+    
+    background-color: #007bff; /* צבע רקע כחול */
+    color: white; /* צבע טקסט לבן */
+    border: none;
+    padding: 12px 20px; /* ריפוד פנימי */
+    border-radius: 5px; /* קצוות מעוגלים */
+    font-size: 16px; /* גודל טקסט אחיד */
+    width: 100%; /* הכפתור יתפוס את כל הרוחב */
+    cursor: pointer; /* סמן יד על מנת להראות שזה לחיץ */
+    margin-top: 10px; /* רווח למעלה */
+}
+
+/* סגנון הכפתור במצב ריחוף */
+button:hover {
+    background-color: #0056b3; /* צבע רקע כחול כהה */
+}
+
+
+/* סגנון כפתור שכחתי סיסמה */
+#forgotPasswordButton {
+    
+    background-color: #ee9b00; /* צבע רקע ירוק */
+    color: white; /* צבע טקסט לבן */
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: auto;
+    margin-top: 15px;
+}
+
+/* סגנון כפתור "שכחתי סיסמה" במצב ריחוף */
+#forgotPasswordButton:hover {
+    background-color: #ca6702; /* צבע רקע ירוק כהה */
+}
+
+
+/* כפתור שמירת קובץ משתמשים */
+#saveUsersButton {
+    background-color: #003049;
+    color: white;
+    padding: 6px 16px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 0 15px;
+    width: auto;
+}
+
+#saveUsersButton:hover {
+    background-color: #2e6e2f;
+}
+
+.logo-and-auth {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    direction: rtl;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 10px 20px;
+    background-color: #fb8500;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.logo-and-auth img {
+    max-height: 60px;
+    max-width: 120px;
+    object-fit: contain;
+    background: none !important;
+}
+
+.user-greeting {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 0 20px;
+}
+
+.user-greeting span {
+    color: white;
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.auth-btn {
+    color: white;
+    padding: 6px 16px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 0;
+    width: auto;
+}
+
+.user-greeting .auth-btn.logout {
+    background-color: #9b5de5;
+}
+
+.user-greeting .auth-btn.edit-profile {
+    background-color: #4CAF50;
+}
+
+.user-greeting .auth-btn.order-history {
+    background-color: #20b2aa;
+}
+
+.user-greeting .auth-btn:hover {
+    opacity: 0.9;
+}
+
+.home-logo {
+    background: none !important;
+}
+
+#userContainer {
+    position: static;
+    height: auto;
+}
+
+.cart-title {
+    text-align: center;
+    font-size: 1.4em;
+    color: #333;
+    margin: 20px 0;
+}
+
+.cart-icon {
+    margin-right: auto;
+}

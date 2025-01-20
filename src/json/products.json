@@ -1,0 +1,146 @@
+[
+  {
+    "id": "orange_juice",
+    "name": "מיץ תפוזים",
+    "price": 34,
+    "description": "מיץ תפוזים סחוט טבעי",
+    "category": "מיצים",
+    "volume": "2 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור",
+    "image": "https://www.dropbox.com/scl/fi/2i54pko68bo1vlb2d57wq/.jpg?rlkey=snwwyfrdb18kgnf4aqh5gvl1o&st=ebxis57v&raw=1"
+  },
+  {
+    "id": "lemonade_juice",
+    "name": "לימונדה",
+    "price": 25,
+    "description": "מיץ לימונדה סחוט טבעי",
+    "category": "מיצים",
+    "volume": "2 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור",
+    "image": "https://www.dropbox.com/scl/fi/xexeqne1zuvnmpxk4iimi/.png?rlkey=jr7x97o51byimu3p1jlwkwo2u&st=3txxe7h1&raw=1"
+  },
+  {
+    "id": "apple_juice",
+    "name": "מיץ תפוחים",
+    "price": 32,
+    "image": "https://www.dropbox.com/scl/fi/owy08at0hq1cznii6gvzu/.png?rlkey=f1wvsmh7mhqqeb0jbpzja9haj&st=909jyfvd&raw=1",
+    "description": "מיץ תפוחים טבעי",
+    "category": "מיצים",
+    "volume": "2 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "grapefruit_juice",
+    "name": "מיץ אשכוליות",
+    "price": 28,
+    "image": "https://www.dropbox.com/scl/fi/y8coljoc5qwqa06a6vu6t/grape_fruit.png?rlkey=ajb2en68i5ta2s1olbbli6krr&st=cxvi0onb&raw=1",
+    "description": "מיץ אשכוליות טבעי",
+    "category": "מיצים",
+    "volume": "2 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "pomegranate_juice",
+    "name": "מיץ רימונים",
+    "price": 32,
+    "image": "https://www.dropbox.com/scl/fi/ep9g52vdbligz67wam8sd/.webp?rlkey=lou3lm68hliygg9etdxyd9fvg&st=ic937e0k&raw=1",
+    "description": "מיץ רימונים (קפוא)",
+    "category": "מיצים",
+    "volume": "2 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "honey",
+    "name": "דבש",
+    "price": 50,
+    "image": "https://www.dropbox.com/scl/fi/2aoepb22gb2w46szq5wfr/honey.jpg?rlkey=xqsnvy6vxhehsq7doap4fkvjh&st=cgg3db21&raw=1",    
+    "description": "דבש טבעי ללא חימום מאיזור לכיש",
+    "category": "מוצרים נלווים",
+    "volume": "קילו",
+    "shelfLife": "כמעט לנצח",
+    "storage": "מקום קריר ויבש"
+  },
+  {
+    "id": "olive_oil",
+    "name": "שמן זית",
+    "price": 130,
+    "image": "https://www.dropbox.com/scl/fi/2vp0n8qx4nyhkq8ejewh9/2.png?rlkey=e2lyu9qjboim6d7241l2l18mh&st=irod0b4z&raw=1",
+    "description": "שמן זית משק אחיה 2 ליטר",
+    "category": "מוצרים נלווים",
+    "volume": "2 ליטר",
+    "shelfLife": "שנה",
+    "storage": "מקום קריר ויבש"
+  },
+  {
+    "id": "lemon_juice",
+    "name": "מיץ לימון סחוט",
+    "price": 26,
+    "image": "https://www.dropbox.com/scl/fi/lujpadm3c15rz1q7a22bi/.jpg?rlkey=tzl5f2gvwcipwlmb9ua44sy0g&st=bpm6olgc&raw=1",
+    "description": "מיץ לימון סחוט",
+    "category": "מיצים",
+    "volume": "1 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "rimonada",
+    "name": "רימונדה",
+    "price": 32,
+    "image": "https://www.dropbox.com/scl/fi/ljg99ihsh11xqu9f0m9tk/.webp?rlkey=i4c2ier50p41evzqgde2gcbf7&st=hzig9ueb&raw=1",
+    "description": "מיץ רימונים ולימונים",
+    "category": "מיצים",
+    "volume": "2 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "orange_juice1L",
+    "name": "תפוז ליטר",
+    "price": 25,
+    "image": "https://www.dropbox.com/scl/fi/boem8zbqv6u2g5gxms7un/1.jpg?rlkey=kw59s1u5dzutwovo88c38yyur&st=jth82xzb&raw=1",
+    "description": "מיץ תפוזים סחוט טבעי ליטר",
+    "category": "מיצים",
+    "volume": "1 ליטר",
+    "shelfLife": "7-10 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "olive_oil5L",
+    "name": "שמן זית 5 ליטר",
+    "price": 290,
+    "image": "https://www.dropbox.com/scl/fi/a5o12qsuozi9zabkcj6ov/5.png?rlkey=h8zxfdpxvzhg5xt3plrgyr2ol&st=aqa4fom3&raw=1",
+    "description": "שמן זית משק אחיה 5 ליטר",
+    "category": "מוצרים נלווים",
+    "volume": "5 ליטר",
+    "shelfLife": "שנה",
+    "storage": "מקום קריר ויבש"
+  },
+  {
+    "id": "sourdough",
+    "name": "לחם מחמצת",
+    "price": 25,
+    "image": "https://www.dropbox.com/scl/fi/8r1fdv4bhwmhs83gtvm89/.jpg?rlkey=jgk7y00kbq1qsif2nwlhypsbu&st=ukr3qcw6&raw=1",
+    "description": "לחם מחמצת טבעי",
+    "category": "מוצרים נלווים",
+    "volume": "750 גרם",
+    "shelfLife": "3-4 ימים",
+    "storage": "מומלץ לשמור בקירור"
+  },
+  {
+    "id": "dates",
+    "name": "תמרים",
+    "price": 80,
+    "image": "https://www.dropbox.com/scl/fi/mecv5q51biakuddw8ztwq/.webp?rlkey=przvb05kx3ar0enz74pzd3026&st=7yn15qz6&raw=1",
+    "description": "תמרים (2 קילו)",
+    "category": "מוצרים נלווים",
+    "volume": "2 קילו",
+    "shelfLife": "כמעט לנצח",
+    "storage": "מקום קריר ויבש"
+  }
+
+]

@@ -1,0 +1,196 @@
+/* משתנים גלובליים */
+:root {
+    /* צבעים */
+    --color-primary: #4CAF50;
+    --color-primary-hover: #45a049;
+    --color-text: #1f2937;
+    --color-text-light: #6b7280;
+    --color-border: #e5e7eb;
+    --color-bg: #f9fafb;
+    --color-white: #ffffff;
+    
+    /* צללים */
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1), 0 4px 10px -5px rgba(0,0,0,0.04);
+    
+    /* מרווחים */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    
+    /* עיגולים */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 24px;
+}
+
+.modal-overlay {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    padding-top: 100px;
+    padding-bottom: 100px;
+    overflow-y: auto;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background: linear-gradient(145deg, var(--color-white), var(--color-bg));
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(0,0,0,0.05);
+    max-width: 500px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.modal h2 {
+    color: var(--color-text);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+}
+
+.modal .close {
+    position: absolute;
+    left: var(--spacing-md);
+    top: var(--spacing-md);
+    font-size: 1.5rem;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.modal .close:hover {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transform: rotate(90deg);
+}
+
+.modal form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.modal input,
+.modal select,
+.modal textarea {
+    padding: var(--spacing-sm);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: var(--color-white);
+}
+
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.modal textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.modal button {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: linear-gradient(145deg, var(--color-primary), var(--color-primary-hover));
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+}
+
+.modal button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.modal #forgotPasswordButton {
+    background: transparent;
+    color: var(--color-text-light);
+    box-shadow: none;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.modal #forgotPasswordButton:hover {
+    color: var(--color-text);
+    transform: none;
+}
+
+.password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-container input {
+    padding-left: 40px;
+}
+
+.password-container .fa-eye,
+.password-container .fa-eye-slash {
+    position: absolute;
+    left: var(--spacing-sm);
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+}
+
+.password-container .fa-eye:hover,
+.password-container .fa-eye-slash:hover {
+    color: var(--color-text);
+    background-color: var(--color-bg);
+}
+
+/* סגנונות ספציפיים לטופס הרשמה */
+#registerForm select {
+    padding-right: var(--spacing-sm);
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-sm) center;
+    background-size: 16px;
+}
+
+#registerForm input[required],
+#registerForm select[required] {
+    border-right: 3px solid var(--color-primary);
+}
+
+/* אנימציה למודל */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-40px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal {
+    animation: modalFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

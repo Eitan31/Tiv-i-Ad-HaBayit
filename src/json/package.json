@@ -1,0 +1,15 @@
+{
+  "type": "module",
+  "devDependencies": {
+    "@types/express": "^5.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "lodash": "^4.17.21",
+    "mssql": "^11.0.1",
+    "mysql2": "^3.12.0",
+    "uuid": "^11.0.3"
+  }
+}
