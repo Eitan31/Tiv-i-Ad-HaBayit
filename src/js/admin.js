@@ -98,13 +98,17 @@ const UsersHelpers = {
 
 // פונקציות עזר גלובליות
 function renderUserNotes(user) {
-    if (!user.notes) return '';
-    const notes = Array.isArray(user.notes) ? user.notes : [user.notes];
-    if (notes.length === 0) return '';
+    if (!user.notes || !Array.isArray(user.notes) || user.notes.length === 0) {
+        return '';
+    }
+
+    const notes = user.notes.filter(note => note.trim() !== '');
+    if (notes.length === 0) {
+        return '';
+    }
 
     return `
         <div class="user-notes">
-            <h4>הערות:</h4>
             <ul>
                 ${notes.map(note => `<li>${note}</li>`).join('')}
             </ul>
@@ -163,18 +167,12 @@ function renderUser(user) {
 
     const locationLinks = `
         <div class="location-links" style="display: flex; gap: 10px; margin-top: 10px;">
-            ${user.maps ? `<a href="${user.maps}" target="_blank" class="location-link" style="display: flex; align-items: center; gap: 5px; text-decoration: none; color: #4a5568; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;"><i class="fas fa-map"></i> Google Maps</a>` : ''}
-            ${user.waze ? `<a href="${user.waze}" target="_blank" class="location-link" style="display: flex; align-items: center; gap: 5px; text-decoration: none; color: #4a5568; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;"><i class="fas fa-location-arrow"></i> Waze</a>` : ''}
+            ${user.maps ? `<a href="${user.maps}" target="_blank" class="location-link" style="display: flex; align-items: center; gap: 5px; text-decoration: none; color: white; background: #10b981; padding: 4px 8px; border-radius: 4px; z-index: 1;"><i class="fas fa-map"></i> Google Maps</a>` : ''}
+            ${user.waze ? `<a href="${user.waze}" target="_blank" class="location-link" style="display: flex; align-items: center; gap: 5px; text-decoration: none; color: white; background: #3b82f6; padding: 4px 8px; border-radius: 4px; z-index: 1;"><i class="fas fa-location-arrow"></i> Waze</a>` : ''}
         </div>
     `;
-
-    const userNotes = user.notes && user.notes.length > 0 ? `
-        <div class="user-notes">
-            <ul>
-                ${Array.isArray(user.notes) ? user.notes.map(note => `<li>${note}</li>`).join('') : `<li>${user.notes}</li>`}
-            </ul>
-        </div>
-    ` : '';
+    
+    const userNotes = renderUserNotes(user);
 
     const userActions = `
         <div class="user-actions">
@@ -188,13 +186,14 @@ function renderUser(user) {
     `;
 
     return `
-        <div class="user-card" style="position: relative;">
-            <div class="card-background" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: white; border-radius: 8px; z-index: -1;"></div>
-            ${userHeader}
-            ${userDetails}
-            ${locationLinks}
-            ${userNotes}
-            ${userActions}
+        <div class="user-card" style="position: relative; border: 2px solid ${ADMIN_IDS.includes(user.id) ? '#93c5fd' : UsersHelpers.isNewUser(user) ? '#fcd34d' : 'transparent'}; border-radius: 8px; padding: 16px;">
+            <div class="card-content" style="position: relative; z-index: 1;">
+                ${userHeader}
+                ${userDetails}
+                ${locationLinks}
+                ${userNotes}
+                ${userActions}
+            </div>
         </div>
     `;
 }
@@ -305,7 +304,6 @@ async function loadUserStats() {
                 const percentage = ((cityStat.count / totalUsers) * 100).toFixed(1);
                 return `
                     <div class="city-stat-card" style="
-                        background: white;
                         border-radius: 8px;
                         padding: 12px;
                         margin: 8px;

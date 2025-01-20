@@ -567,11 +567,12 @@ html, body {
 }
 
 .user-item {
-    background: white;
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s ease;
+    background: transparent;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 8px;
+    transition: transform 0.3s ease;
+    position: relative;
 }
 
 .user-item:hover {
@@ -879,4 +880,12 @@ html, body {
 
 .position-select-modal-overlay .user-select-item:hover {
     background-color: #f3f4f6 !important;
+}
+
+.user-card {
+    background: transparent !important;
+}
+
+.card-content {
+    background: transparent !important;
 } 
