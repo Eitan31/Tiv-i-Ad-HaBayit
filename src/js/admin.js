@@ -131,7 +131,25 @@ function renderUser(user) {
         <div class="user-header">
             <h3>${user.name}</h3>
             ${user.position ? `<span class="user-position-circle">${user.position}</span>` : ''}
-            <span class="user-debt" style="${user.debt_balance > 0 ? 'color: #ffffff; font-weight: bold; background-color: #ef4444; padding: 4px 8px; border-radius: 4px; display: inline-block;' : ''}">${user.debt_balance}₪</span>
+            ${user.debt_balance > 0 ? `<span class="user-debt" style="color: #ffffff; font-weight: bold; background-color: #9333ea; padding: 4px 8px; border-radius: 4px; display: inline-block;">${user.debt_balance}₪</span>` : ''}
+            ${ADMIN_IDS.includes(user.id) ? `
+                <div class="admin-badge" style="position: absolute; top: -15px; left: 5px; background-color: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; display: flex; align-items: center; gap: 4px; pointer-events: none; user-select: none;">
+                    <i class="fas fa-crown"></i> מנהל
+                </div>
+            ` : ''}
+            ${isAdminSelectionMode && !ADMIN_IDS.includes(user.id) ? `
+                <div class="admin-checkbox-container" style="position: absolute; top: -15px; right: 5px; transform: scale(0.98);">
+                    <input type="checkbox" 
+                           style="width: 20px; height: 20px; margin: 0 5px; cursor: pointer;"
+                           onchange="toggleUserAdmin('${user.id}', this.checked)">
+                </div>
+            ` : ''}
+            ${isAdminsView && ADMIN_IDS.includes(user.id) ? `
+                <button onclick="toggleUserAdmin('${user.id}', false)" 
+                        style="position: absolute; top: -15px; right: 5px; background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; transform: scale(0.98);">
+                    <i class="fas fa-user-minus"></i> הסר מנהל
+                </button>
+            ` : ''}
         </div>
     `;
 
@@ -144,9 +162,9 @@ function renderUser(user) {
     `;
 
     const locationLinks = `
-        <div class="location-links">
-            ${user.maps ? `<a href="${user.maps}" target="_blank" class="location-link"><i class="fas fa-map"></i> Google Maps</a>` : ''}
-            ${user.waze ? `<a href="${user.waze}" target="_blank" class="location-link"><i class="fas fa-location-arrow"></i> Waze</a>` : ''}
+        <div class="location-links" style="display: flex; gap: 10px; margin-top: 10px;">
+            ${user.maps ? `<a href="${user.maps}" target="_blank" class="location-link" style="display: flex; align-items: center; gap: 5px; text-decoration: none; color: #4a5568; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;"><i class="fas fa-map"></i> Google Maps</a>` : ''}
+            ${user.waze ? `<a href="${user.waze}" target="_blank" class="location-link" style="display: flex; align-items: center; gap: 5px; text-decoration: none; color: #4a5568; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;"><i class="fas fa-location-arrow"></i> Waze</a>` : ''}
         </div>
     `;
 
@@ -170,7 +188,8 @@ function renderUser(user) {
     `;
 
     return `
-        <div class="user-card">
+        <div class="user-card" style="position: relative;">
+            <div class="card-background" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: white; border-radius: 8px; z-index: -1;"></div>
             ${userHeader}
             ${userDetails}
             ${locationLinks}
@@ -183,6 +202,7 @@ function renderUser(user) {
 // פונקציה לטעינת משתמשים
 async function loadUsers(cityFilter = 'all', showOnlyNew = false) {
     try {
+        isAdminsView = false; // מעדכנים את המצב לתצוגה רגילה
         const users = await UsersCache.get();
         
         // סידור הערים לפי הסדר הרצוי
@@ -356,50 +376,51 @@ async function switchView(view) {
         activeButton.style.color = '#ffffff';
     }
     
-    // הסתרת כל התצוגות
+    // הסתרת כל התצוגות והאלמנטים הקשורים
     document.querySelectorAll('.view-section').forEach(section => {
         section.style.display = 'none';
     });
     
-    // הצגת התצוגה הנבחרת
-    let activeView = document.getElementById(`${view}View`);
-    
-    // אם התצוגה לא קיימת, יצירת תצוגה חדשה
-    if (!activeView) {
-        activeView = document.createElement('div');
-        activeView.id = `${view}View`;
-        activeView.className = 'view-section';
-        document.querySelector('.main-content').appendChild(activeView);
-    }
-    
-    // טעינת תוכן בהתאם לתצוגה
-    try {
-        switch(view) {
-            case 'users':
-                await loadUsers();
-                break;
-            case 'products':
-                if (typeof loadProducts === 'function') {
-                    await loadProducts();
-                } else {
-                    activeView.innerHTML = '<h2>מערכת ניהול מוצרים תהיה זמינה בקרוב</h2>';
-                }
-                break;
-            case 'orders':
-                if (typeof loadOrders === 'function') {
-                    await loadOrders();
-                } else {
-                    activeView.innerHTML = '<h2>מערכת ניהול הזמנות תהיה זמינה בקרוב</h2>';
-                }
-                break;
+    // הסתרת אלמנטים ספציפיים לתצוגת משתמשים כשלא נמצאים בה
+    const userElements = ['.user-stats', '#cityStatsContainer', '.controls-row'];
+    userElements.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) {
+            element.style.display = view === 'users' ? '' : 'none';
         }
-    } catch (error) {
-        console.error('שגיאה בטעינת התצוגה:', error);
-        activeView.innerHTML = '<h2>שגיאה בטעינת התוכן</h2>';
-    }
+    });
     
-    // הצגת התצוגה
-    activeView.style.display = 'block';
+    // הצגת התצוגה הנבחרת
+    const activeView = document.getElementById(`${view}View`);
+    if (activeView) {
+        activeView.style.display = 'block';
+        
+        // טעינת תוכן בהתאם לתצוגה
+        try {
+            switch(view) {
+                case 'users':
+                    await loadUsers();
+                    break;
+                case 'products':
+                    if (typeof loadProducts === 'function') {
+                        await loadProducts();
+                    } else {
+                        activeView.innerHTML = '<h2>מערכת ניהול מוצרים תהיה זמינה בקרוב</h2>';
+                    }
+                    break;
+                case 'orders':
+                    if (typeof loadOrders === 'function') {
+                        await loadOrders();
+                    } else {
+                        activeView.innerHTML = '<h2>מערכת ניהול הזמנות תהיה זמינה בקרוב</h2>';
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error('שגיאה בטעינת התצוגה:', error);
+            activeView.innerHTML = '<h2>שגיאה בטעינת התוכן</h2>';
+        }
+    }
 }
 
 // עדכון פונקציית אתחול הדף
@@ -414,6 +435,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         // הגדרת הכפתורים הראשיים
         const mainNavButtons = document.querySelectorAll('.main-nav-button');
         mainNavButtons.forEach(button => {
+            button.style.cssText = `
+                width: 100%;
+                padding: 1rem;
+                margin: 0.5rem 0;
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 0.5rem;
+                background-color: #ffffff;
+                color: #374151;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            `;
+            
             button.addEventListener('click', (e) => {
                 const view = e.target.closest('.main-nav-button').dataset.view;
                 switchView(view);
@@ -429,32 +468,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
         }
         
-        // הגדרת חיפוש משתמשים
-        const userSearch = document.getElementById('userSearch');
-        if (userSearch) {
-            userSearch.addEventListener('input', (e) => {
-                const searchTerm = e.target.value.toLowerCase();
-                const userCards = document.querySelectorAll('.user-item');
-                let totalCount = 0;
-                
-                userCards.forEach(card => {
-                    const text = card.textContent.toLowerCase();
-                    const isVisible = text.includes(searchTerm);
-                    card.style.display = isVisible ? 'block' : 'none';
-                    if (isVisible) totalCount++;
-                });
-                
-                // עדכון ספירת תוצאות
-                let resultsSpan = document.getElementById('searchResults');
-                if (!resultsSpan) {
-                    resultsSpan = document.createElement('span');
-                    resultsSpan.id = 'searchResults';
-                    resultsSpan.className = 'search-results-count';
-                    userSearch.parentNode.appendChild(resultsSpan);
-                }
-                resultsSpan.textContent = `נמצאו ${totalCount} תוצאות`;
-            });
-        }
+        // הגדרת כפתורי הסינון
+        const filterButtons = document.querySelectorAll('.filter-button');
+        filterButtons.forEach(button => {
+            button.style.cssText = `
+                padding: 0.5rem 1rem;
+                border: none;
+                border-radius: 4px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: white;
+            `;
+
+            if (button.classList.contains('green')) {
+                button.style.backgroundColor = '#10b981';
+            } else if (button.classList.contains('gold')) {
+                button.style.backgroundColor = '#f59e0b';
+            } else if (button.classList.contains('blue')) {
+                button.style.backgroundColor = '#3b82f6';
+            } else if (button.classList.contains('purple')) {
+                button.style.backgroundColor = '#9333ea';
+            } else if (button.classList.contains('black')) {
+                button.style.backgroundColor = '#1f2937';
+            }
+        });
         
         // טעינת תצוגת ברירת מחדל (משתמשים)
         await switchView('users');
@@ -998,6 +1038,7 @@ async function updateUser(userData) {
 // פונקציה להצגת רשימת מנהלים
 window.showAdmins = async function() {
     try {
+        isAdminsView = true; // מעדכנים את המצב לתצוגת מנהלים
         const users = await UsersCache.get();
         const admins = users.filter(user => ADMIN_IDS.includes(user.id));
         
@@ -1022,36 +1063,12 @@ window.showAdmins = async function() {
         const usersGrid = document.createElement('div');
         usersGrid.className = 'users-grid';
         
-        // מיון המנהלים לפי שם
-        admins.sort((a, b) => a.name.localeCompare(b.name));
-        
         admins.forEach(admin => {
             const userCard = document.createElement('div');
             userCard.className = 'user-item';
             userCard.dataset.userId = admin.id;
             userCard.dataset.position = admin.position || 0;
             userCard.innerHTML = renderUser(admin);
-            
-            // הוספת סימון מיוחד למנהלים
-            const adminBadge = document.createElement('div');
-            adminBadge.className = 'admin-badge';
-            adminBadge.innerHTML = '<i class="fas fa-crown"></i> מנהל';
-            adminBadge.style.cssText = `
-                position: absolute;
-                top: 10px;
-                left: 10px;
-                background-color: #3b82f6;
-                color: white;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 0.9em;
-                font-weight: bold;
-                display: flex;
-                align-items: center;
-                gap: 4px;
-            `;
-            userCard.appendChild(adminBadge);
-            
             usersGrid.appendChild(userCard);
         });
         
@@ -1061,9 +1078,9 @@ window.showAdmins = async function() {
         // עדכון כפתורי הסינון
         document.querySelectorAll('.filter-button').forEach(btn => {
             btn.classList.remove('active');
-            if (btn.classList.contains('blue')) {
-                btn.classList.add('active');
-            }
+            btn.style.backgroundColor = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
         });
         
     } catch (error) {
@@ -1096,37 +1113,59 @@ const ADMIN_IDS = []; // רשימה ריקה של מנהלים
 let isAdminSelectionMode = false;
 
 // פונקציה להפעלת/כיבוי מצב בחירת מנהלים
-window.toggleAdminMode = function() {
+window.toggleAdminMode = async function() {
     isAdminSelectionMode = !isAdminSelectionMode;
-    const userCards = document.querySelectorAll('.user-item');
-    const selectButton = document.querySelector('.admin-button:nth-child(2)');
     
-    userCards.forEach(card => {
-        const userId = card.getAttribute('data-user-id');
-        if (isAdminSelectionMode) {
-            const checkboxHtml = `
-                <div class="admin-checkbox-container" style="position: absolute; top: 10px; right: 10px;">
-                    <input type="checkbox" 
-                           style="width: 20px; height: 20px; margin: 0 5px; cursor: pointer;"
-                           ${ADMIN_IDS.includes(userId) ? 'checked' : ''}
-                           onchange="toggleUserAdmin('${userId}', this.checked)">
-                </div>
-            `;
-            card.insertAdjacentHTML('afterbegin', checkboxHtml);
-        } else {
-            const checkboxContainer = card.querySelector('.admin-checkbox-container');
-            if (checkboxContainer) {
-                checkboxContainer.remove();
-            }
-        }
+    // עדכון כפתורי הסינון
+    document.querySelectorAll('.filter-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.backgroundColor = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
     });
-    
-    if (selectButton) {
-        selectButton.innerHTML = isAdminSelectionMode ? 
-            '<i class="fas fa-times"></i> סיים בחירה' : 
-            '<i class="fas fa-user-plus"></i> בחר מנהלים';
+
+    const adminButton = document.querySelector('.filter-button.black');
+    if (adminButton) {
+        adminButton.classList.add('active');
+        adminButton.style.backgroundColor = '#1f2937';
+        if (isAdminSelectionMode) {
+            adminButton.innerHTML = '<i class="fas fa-times"></i> סיים בחירה';
+            showSuccessMessage('בחר משתמשים להוספה לרשימת המנהלים');
+        } else {
+            adminButton.innerHTML = '<i class="fas fa-user-plus"></i> בחר מנהל';
+        }
     }
-};
+    
+    // טעינה מחדש של המשתמשים כדי לעדכן את התצוגה
+    await loadUsers();
+}
+
+// פונקציה לטיפול בשינוי סטטוס מנהל
+window.toggleUserAdmin = async function(userId, isAdmin) {
+    const user = await fetch(`/api/users/${userId}`).then(res => res.json());
+    
+    if (isAdmin && !ADMIN_IDS.includes(userId)) {
+        // הוספת מנהל חדש
+        ADMIN_IDS.push(userId);
+        await saveAdminIds();
+        showSuccessMessage(`${user.name} הפך למנהל`);
+    } else if (!isAdmin && ADMIN_IDS.includes(userId)) {
+        // הסרת מנהל קיים
+        const index = ADMIN_IDS.indexOf(userId);
+        if (index > -1) {
+            ADMIN_IDS.splice(index, 1);
+            await saveAdminIds();
+            showSuccessMessage(`${user.name} הוסר מרשימת המנהלים`);
+        }
+    }
+    
+    // רענון התצוגה בהתאם למצב הנוכחי
+    if (isAdminSelectionMode) {
+        await loadUsers();
+    } else {
+        await showAdmins();
+    }
+}
 
 // פונקציה להצגת משתמשים עם חוב
 window.showUsersWithDebt = async function() {
@@ -1153,7 +1192,7 @@ window.showUsersWithDebt = async function() {
         // יצירת סקציה אחת עם כל המשתמשים עם חוב
         const section = document.createElement('div');
         section.className = 'city-section';
-        section.innerHTML = `<h3>משתמשים עם חוב (${usersWithDebt.length})</h3>`;
+        section.innerHTML = `<h3 style="color: #9333ea;">משתמשים עם חוב (${usersWithDebt.length})</h3>`;
         
         const usersGrid = document.createElement('div');
         usersGrid.className = 'users-grid';
@@ -1164,20 +1203,6 @@ window.showUsersWithDebt = async function() {
             userCard.dataset.userId = user.id;
             userCard.dataset.position = user.position || 0;
             userCard.innerHTML = renderUser(user);
-            
-            // הדגשת החוב בכרטיסיה
-            const debtElement = userCard.querySelector('.user-debt');
-            if (debtElement) {
-                debtElement.style.cssText = `
-                    color: #ffffff;
-                    font-weight: bold;
-                    background-color: #ef4444;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    display: inline-block;
-                `;
-            }
-            
             usersGrid.appendChild(userCard);
         });
         
@@ -1187,17 +1212,18 @@ window.showUsersWithDebt = async function() {
         // עדכון כפתורי הסינון
         document.querySelectorAll('.filter-button').forEach(btn => {
             btn.classList.remove('active');
-            if (btn.classList.contains('purple')) {
-                btn.style.backgroundColor = '#9333ea';
-                btn.style.borderColor = '#9333ea';
-                btn.style.cssText = `
-                background-color: #9333ea;
-                border-color: #9333ea;
-                color: #ffffff;
-            `;
-                btn.classList.add('active');
-            }
+            btn.style.backgroundColor = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
         });
+
+        const debtButton = document.querySelector('.filter-button.purple');
+        if (debtButton) {
+            debtButton.classList.add('active');
+            debtButton.style.backgroundColor = '#9333ea';
+            debtButton.style.borderColor = '#9333ea';
+            debtButton.style.color = '#ffffff';
+        }
         
     } catch (error) {
         console.error('שגיאה בטעינת משתמשים עם חוב:', error);
@@ -1471,30 +1497,5 @@ async function saveAdminIds() {
     }
 }
 
-// הגדרת toggleUserAdmin כפונקציה אסינכרונית
-window.toggleUserAdmin = async function(userId, isAdmin) {
-    if (isAdmin) {
-        if (!ADMIN_IDS.includes(userId)) {
-            ADMIN_IDS.push(userId);
-            await saveAdminIds();
-            showSuccessMessage('המשתמש הפך למנהל');
-            // עדכון תיבת הסימון
-            const checkbox = document.querySelector(`[data-user-id="${userId}"] .admin-checkbox-container input[type="checkbox"]`);
-            if (checkbox) {
-                checkbox.checked = true;
-            }
-        }
-    } else {
-        const index = ADMIN_IDS.indexOf(userId);
-        if (index > -1) {
-            ADMIN_IDS.splice(index, 1);
-            await saveAdminIds();
-            showSuccessMessage('המשתמש הוסר מרשימת המנהלים');
-            // עדכון תיבת הסימון
-            const checkbox = document.querySelector(`[data-user-id="${userId}"] .admin-checkbox-container input[type="checkbox"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-        }
-    }
-};
+// נוסיף משתנה גלובלי חדש לציון מצב תצוגת מנהלים
+let isAdminsView = false;
