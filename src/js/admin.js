@@ -5,6 +5,11 @@ const CONFIG = {
     },
     USERS: {
         CITIES: ['להבים', 'עומר', 'מיתר', 'כרמים', 'באר שבע']
+    },
+    VIEWS: {
+        USERS: 'users',
+        PRODUCTS: 'products',
+        ORDERS: 'orders'
     }
 };
 
@@ -360,19 +365,20 @@ async function switchView(view) {
     console.log('מעבר לתצוגה:', view);
     
     // הסרת סטייל פעיל מכל הכפתורים
-    document.querySelectorAll('.main-nav-button').forEach(btn => {
+    document.querySelectorAll('.main-nav-button, .side-nav-button').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.backgroundColor = '#ffffff';
-        btn.style.color = '#374151';
+        if (btn.classList.contains('main-nav-button')) {
+            btn.style.backgroundColor = '#3b82f6';
+        }
     });
     
-    // הוספת סטייל פעיל לכפתור הנבחר
-    const activeButton = document.querySelector(`.main-nav-button[data-view="${view}"]`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-        activeButton.style.backgroundColor = '#10b981';
-        activeButton.style.color = '#ffffff';
-    }
+    // הוספת סטייל פעיל לכפתורים המתאימים
+    document.querySelectorAll(`.main-nav-button[data-view="${view}"], .side-nav-button[data-view="${view}"]`).forEach(button => {
+        button.classList.add('active');
+        if (button.classList.contains('main-nav-button')) {
+            button.style.backgroundColor = '#10b981';
+        }
+    });
     
     // הסתרת כל התצוגות והאלמנטים הקשורים
     document.querySelectorAll('.view-section').forEach(section => {
@@ -430,25 +436,40 @@ document.addEventListener('DOMContentLoaded', async function() {
         // הגדרת חיפוש
         setupSearch();
 
+        // יצירת כפתורי ניווט בצד
+        createSideNavigation();
+
         // הגדרת הכפתורים הראשיים
+        const mainNav = document.querySelector('.main-nav');
+        if (mainNav) {
+            mainNav.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 1rem;
+                display: flex;
+                justify-content: center;
+                gap: 1rem;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+            `;
+        }
+
         const mainNavButtons = document.querySelectorAll('.main-nav-button');
         mainNavButtons.forEach(button => {
             button.style.cssText = `
-                width: 100%;
-                padding: 1rem;
-                margin: 0.5rem 0;
+                padding: 1rem 2rem;
                 border: none;
                 border-radius: 8px;
-                font-weight: 600;
+                font-weight: bold;
+                font-size: 1.1rem;
                 cursor: pointer;
-                transition: all 0.2s;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 0.5rem;
-                background-color: #ffffff;
-                color: #374151;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                transition: all 0.3s ease;
+                background-color: #ffc2d1;
+                color: white;
+                width: 33.33%;
             `;
             
             button.addEventListener('click', (e) => {
@@ -950,9 +971,9 @@ window.toggleOtherCityInput = function(select) {
 }
 
 window.closeModal = function(element) {
-    const modal = element.closest('.edit-user-modal-overlay');
-    if (modal) {
-        modal.remove();
+    const modalOverlay = element.closest('.modal-overlay, .edit-user-modal-overlay, .position-select-modal-overlay');
+    if (modalOverlay) {
+        modalOverlay.remove();
     }
 }
 
@@ -1229,112 +1250,141 @@ window.showUsersWithDebt = async function() {
     }
 }
 
+// פונקציה לתיקון קישורי Dropbox
+function fixDropboxImageUrl(url) {
+    if (!url || !url.includes('dropbox.com')) return url;
+    return url.replace('?dl=0', '?raw=1')
+              .replace('&dl=0', '&raw=1')
+              .replace('www.dropbox', 'dl.dropboxusercontent');
+}
+
 // פונקציה לטעינת מוצרים
 async function loadProducts() {
     try {
         const response = await fetch('/api/products');
         const products = await response.json();
         
-        const productsList = document.getElementById('productsList');
-        if (!productsList) {
-            console.error('לא נמצא אלמנט עם ID productsList');
-            return;
-        }
+        const productsView = document.getElementById('productsView');
+        if (!productsView) return;
         
-        productsList.innerHTML = '';
-        
-        if (products.length === 0) {
-            productsList.innerHTML = '<div class="no-results">אין מוצרים להצגה</div>';
-            return;
-        }
-
-        products.forEach(product => {
-            const productCard = document.createElement('div');
-            productCard.className = 'product-item';
-            productCard.innerHTML = `
-                <div class="product-header">
-                    <h3>${product.name}</h3>
-                    <span class="product-price">₪${product.price}</span>
+        productsView.innerHTML = `
+            <div class="products-container">
+                <div class="products-header">
+                    <input type="text" class="products-search" placeholder="חיפוש מוצר..." onkeyup="filterProducts(this.value)">
+                    <button class="add-product-btn" onclick="showProductForm()">
+                        <i class="fas fa-plus"></i>
+                        הוסף מוצר
+                    </button>
                 </div>
+                <div class="products-grid" id="productsGrid"></div>
+            </div>
+        `;
+        
+        const productsGrid = document.getElementById('productsGrid');
+        if (!productsGrid) return;
+        
+        productsGrid.innerHTML = products.map(product => `
+            <div class="product-card">
+                <img src="${fixDropboxImageUrl(product.image) || '/images/default-product.png'}" alt="${product.name}" class="product-image">
+                <div class="product-name">${product.name}</div>
+                <div class="product-price">₪${product.price}</div>
+                <div class="product-category">${product.category || 'ללא קטגוריה'}</div>
                 <div class="product-details">
-                    <p>${product.description || 'אין תיאור'}</p>
-                    <p>כמות במלאי: ${product.stock || 0}</p>
+                    <div>נפח: ${product.volume || 'לא צוין'}</div>
+                    <div>אחסון: ${product.storage || 'לא צוין'}</div>
+                    <div>חיי מדף: ${product.shelfLife || 'לא צוין'}</div>
                 </div>
                 <div class="product-actions">
-                    <button onclick="editProduct('${product.id}')" class="edit-button">
-                        <i class="fas fa-edit"></i> ערוך
+                    <button class="product-edit-btn" onclick="editProduct(${product.id})">
+                        <i class="fas fa-edit"></i>
+                        ערוך
                     </button>
-                    <button onclick="deleteProduct('${product.id}')" class="delete-button">
-                        <i class="fas fa-trash"></i> מחק
+                    <button class="product-delete-btn" onclick="deleteProduct(${product.id})">
+                        <i class="fas fa-trash"></i>
+                        מחק
                     </button>
                 </div>
-            `;
-            productsList.appendChild(productCard);
-        });
+            </div>
+        `).join('');
         
     } catch (error) {
         console.error('שגיאה בטעינת מוצרים:', error);
-        const productsList = document.getElementById('productsList');
-        if (productsList) {
-            productsList.innerHTML = '<div class="error-message">שגיאה בטעינת המוצרים</div>';
-        }
+        showErrorMessage('שגיאה בטעינת המוצרים');
     }
 }
 
-// פונקציה להצגת טופס עריכת/הוספת מוצר
-window.showProductForm = function(product = null) {
+// פונקציה להצגת טופס עריכה/הוספת מוצר
+async function showProductForm(product = null) {
     const isEdit = !!product;
     
-    const modal = document.createElement('div');
-    modal.className = 'edit-product-modal-overlay';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    `;
+    // אם זה מוצר חדש, נחשב את ה-ID הבא
+    let nextId = null;
+    if (!isEdit) {
+        try {
+            const response = await fetch('/api/products');
+            const products = await response.json();
+            // מציאת ה-ID הגבוה ביותר והוספת 1
+            nextId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
+        } catch (error) {
+            console.error('שגיאה בחישוב ID הבא:', error);
+            nextId = 1; // ברירת מחדל אם יש שגיאה
+        }
+    }
     
+    // תיקון URL התמונה אם קיים
+    if (product?.image) {
+        product.image = fixDropboxImageUrl(product.image);
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
     modal.innerHTML = `
-        <div class="edit-product-modal-content" style="
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            width: 100%;
-            max-width: 400px;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        ">
-            <div class="edit-product-modal-header">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h2>${isEdit ? 'עריכת מוצר' : 'הוספת מוצר חדש'}</h2>
             </div>
-            <form class="product-form">
-                <div class="form-group">
+            <form class="product-form-container" id="productForm">
+                ${!isEdit ? `
+                <div class="product-form-group">
+                    <label>מספר מזהה</label>
+                    <input type="number" name="id" value="${nextId}" readonly style="background-color: #f3f4f6;">
+                </div>
+                ` : ''}
+                <div class="product-form-group">
                     <label>שם המוצר</label>
                     <input type="text" name="name" required value="${product?.name || ''}">
                 </div>
-                <div class="form-group">
+                <div class="product-form-group">
                     <label>מחיר</label>
-                    <input type="number" name="price" required value="${product?.price || ''}">
+                    <input type="number" step="0.01" name="price" required value="${product?.price || ''}">
                 </div>
-                <div class="form-group">
+                <div class="product-form-group">
+                    <label>תמונה (URL)</label>
+                    <input type="text" name="image" value="${product?.image || ''}" oninput="this.value = fixDropboxImageUrl(this.value)">
+                </div>
+                <div class="product-form-group">
                     <label>תיאור</label>
                     <textarea name="description">${product?.description || ''}</textarea>
                 </div>
-                <div class="form-group">
-                    <label>כמות במלאי</label>
-                    <input type="number" name="stock" required value="${product?.stock || '0'}">
+                <div class="product-form-group">
+                    <label>קטגוריה</label>
+                    <input type="text" name="category" value="${product?.category || ''}">
+                </div>
+                <div class="product-form-group">
+                    <label>נפח</label>
+                    <input type="text" name="volume" value="${product?.volume || ''}">
+                </div>
+                <div class="product-form-group">
+                    <label>אחסון</label>
+                    <input type="text" name="storage" value="${product?.storage || ''}">
+                </div>
+                <div class="product-form-group">
+                    <label>חיי מדף</label>
+                    <input type="text" name="shelfLife" value="${product?.shelfLife || ''}">
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="save-button">שמור</button>
-                    <button type="button" onclick="closeProductModal(this)" class="cancel-button">ביטול</button>
+                    <button type="button" class="cancel-button" onclick="closeModal(this)">ביטול</button>
                 </div>
             </form>
         </div>
@@ -1342,87 +1392,114 @@ window.showProductForm = function(product = null) {
     
     document.body.appendChild(modal);
     
-    const form = modal.querySelector('form');
+    const form = modal.querySelector('#productForm');
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(form);
         
-        const productData = {
-            ...(product?.id && { id: product.id }),
-            name: formData.get('name'),
-            price: parseFloat(formData.get('price')),
-            description: formData.get('description'),
-            stock: parseInt(formData.get('stock'))
-        };
-
         try {
+            const formData = new FormData(form);
+            
+            const productData = {
+                ...(nextId && { id: parseInt(nextId) }), // הוספת ה-ID רק אם זה מוצר חדש
+                ...(product?.id && { id: product.id }), // שמירה על ה-ID הקיים אם זה עריכה
+                name: formData.get('name').trim(),
+                price: parseFloat(formData.get('price')),
+                image: fixDropboxImageUrl(formData.get('image')),
+                description: formData.get('description')?.trim() || '',
+                category: formData.get('category')?.trim() || '',
+                volume: formData.get('volume')?.trim() || '',
+                storage: formData.get('storage')?.trim() || '',
+                shelfLife: formData.get('shelfLife')?.trim() || ''
+            };
+
+            // בדיקת שדות חובה
+            if (!productData.name) {
+                throw new Error('יש להזין שם מוצר');
+            }
+
+            console.log('שולח נתונים:', productData); // לוג לבדיקה
+
             const response = await fetch(isEdit ? `/api/products/${product.id}` : '/api/products', {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(productData)
             });
 
             if (!response.ok) {
-                throw new Error('Error saving product');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'שגיאה בשמירת המוצר');
             }
+
+            const savedProduct = await response.json();
+            console.log('המוצר נשמר:', savedProduct); // לוג לבדיקה
 
             modal.remove();
             showSuccessMessage(isEdit ? 'המוצר עודכן בהצלחה' : 'המוצר נוסף בהצלחה');
             loadProducts();
 
         } catch (error) {
-            console.error('Error:', error);
-            alert('אירעה שגיאה בשמירת המוצר');
+            console.error('שגיאה:', error);
+            showErrorMessage(error.message || 'שגיאה בשמירת המוצר');
         }
     });
-};
-
-// פונקציה לסגירת מודל המוצר
-window.closeProductModal = function(element) {
-    const modal = element.closest('.edit-product-modal-overlay');
-    if (modal) {
-        modal.remove();
-    }
-};
+}
 
 // פונקציה לעריכת מוצר
-window.editProduct = async function(productId) {
+async function editProduct(productId) {
     try {
         const response = await fetch(`/api/products/${productId}`);
+        if (!response.ok) throw new Error('שגיאה בטעינת פרטי המוצר');
+        
         const product = await response.json();
         showProductForm(product);
     } catch (error) {
-        console.error('שגיאה בטעינת פרטי המוצר:', error);
-        alert('שגיאה בטעינת פרטי המוצר');
+        console.error('שגיאה:', error);
+        showErrorMessage('שגיאה בטעינת פרטי המוצר');
     }
-};
+}
 
 // פונקציה למחיקת מוצר
-window.deleteProduct = async function(productId) {
-    if (!confirm('האם אתה בטוח שברצונך למחוק מוצר זה?')) {
-        return;
-    }
-
+async function deleteProduct(productId) {
+    if (!confirm('האם אתה בטוח שברצונך למחוק מוצר זה?')) return;
+    
     try {
         const response = await fetch(`/api/products/${productId}`, {
             method: 'DELETE'
         });
 
-        if (!response.ok) {
-            throw new Error('Error deleting product');
-        }
+        if (!response.ok) throw new Error('שגיאה במחיקת המוצר');
 
         showSuccessMessage('המוצר נמחק בהצלחה');
         loadProducts();
-
     } catch (error) {
-        console.error('שגיאה במחיקת המוצר:', error);
-        alert('אירעה שגיאה במחיקת המוצר');
+        console.error('שגיאה:', error);
+        showErrorMessage('שגיאה במחיקת המוצר');
     }
-};
+}
+
+// פונקציה לסינון מוצרים
+function filterProducts(searchTerm) {
+    const productsGrid = document.getElementById('productsGrid');
+    if (!productsGrid) return;
+    
+    const cards = productsGrid.getElementsByClassName('product-card');
+    const term = searchTerm.toLowerCase();
+    
+    Array.from(cards).forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(term) ? '' : 'none';
+    });
+}
 
 // הוספת הפונקציות לחלון הגלובלי
 window.loadProducts = loadProducts;
+window.showProductForm = showProductForm;
+window.editProduct = editProduct;
+window.deleteProduct = deleteProduct;
+window.filterProducts = filterProducts;
+window.fixDropboxImageUrl = fixDropboxImageUrl;
 
 // פונקציית חיפוש
 function setupSearch() {
@@ -1497,3 +1574,21 @@ async function saveAdminIds() {
 
 // נוסיף משתנה גלובלי חדש לציון מצב תצוגת מנהלים
 let isAdminsView = false;
+
+// פונקציה ליצירת כפתורי ניווט קבועים בצד שמאל
+function createSideNavigation() {
+    const sideNav = document.createElement('div');
+    sideNav.className = 'side-nav';
+    sideNav.innerHTML = `
+        <button onclick="switchView('${CONFIG.VIEWS.USERS}')" class="side-nav-button" data-view="${CONFIG.VIEWS.USERS}">
+            <i class="fas fa-users"></i>
+        </button>
+        <button onclick="switchView('${CONFIG.VIEWS.PRODUCTS}')" class="side-nav-button" data-view="${CONFIG.VIEWS.PRODUCTS}">
+            <i class="fas fa-box"></i>
+        </button>
+        <button onclick="switchView('${CONFIG.VIEWS.ORDERS}')" class="side-nav-button" data-view="${CONFIG.VIEWS.ORDERS}">
+            <i class="fas fa-shopping-cart"></i>
+        </button>
+    `;
+    document.body.appendChild(sideNav);
+}

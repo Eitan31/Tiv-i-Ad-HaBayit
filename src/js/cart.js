@@ -63,10 +63,10 @@ let generateCartItems = () => {
     // יצירת כפתורי ניווט
     label.innerHTML = `
         <div class="nav-buttons">
-            <button class="edit-btn">עריכה</button>
-            <button class="orders-btn">הזמנות</button>
-            <button class="logout-btn">התנתק</button>
-            <button class="manage-btn">ניהול</button>
+            <button class="edit-btn" onclick="window.location.href='edit.html'">עריכה</button>
+            <button class="orders-btn" onclick="window.location.href='orders.html'">הזמנות</button>
+            <button class="logout-btn" onclick="handleLogout()">התנתק</button>
+            <button class="manage-btn" onclick="window.location.href='manage.html'">ניהול</button>
         </div>
         <div class="cart-title">${cartTitle}</div>
     `;
@@ -98,7 +98,7 @@ let generateCartItems = () => {
                 </h4>
                 <img width="100" src="${product.img}" alt="${product.name}" />
                 <div class="details">
-                    <i onclick="removeItem('${id}')" class="bi-x-lg"></i>
+                    <i onclick="removeItem('${id}')" class="bi bi-x-lg"></i>
                     <div class="buttons">
                         <i onclick="increment('${id}')" class="bi bi-plus-lg"></i>
                         <div id="${id}" class="quantity">${basketItem.item}</div>
@@ -124,6 +124,14 @@ let generateCartItems = () => {
 
     shoppingCart.innerHTML = '';
     shoppingCart.appendChild(fragment);
+
+    // הוספת כפתורי פעולה
+    label.innerHTML += `
+        <div class="buttons-container">
+            <button onclick="checkout()" class="checkout">בצע הזמנה</button>
+            <button onclick="clearCart()" class="removeAll">הסרת כל הפריטים</button>
+        </div>
+    `;
 };
 
 // Attach event listeners to dynamic elements
@@ -254,3 +262,22 @@ loadProducts();
 document.addEventListener('DOMContentLoaded', () => {
     calculation(); // חישוב ראשוני של כמות הפריטים
 });
+
+// פונקציית התנתקות
+const handleLogout = () => {
+    localStorage.removeItem("loggedInUser");
+    window.location.href = "index.html";
+};
+
+// פונקציית ביצוע הזמנה
+const checkout = () => {
+    if (basketMap.size === 0) {
+        alert("העגלה ריקה!");
+        return;
+    }
+    
+    // כאן תוכל להוסיף את הלוגיקה של ביצוע ההזמנה
+    alert("ההזמנה בוצעה בהצלחה!");
+    clearCart();
+    window.location.href = "index.html";
+};

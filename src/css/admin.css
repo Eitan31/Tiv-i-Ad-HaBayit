@@ -49,6 +49,7 @@ body {
     color: var(--color-text);
     line-height: 1.5;
     direction: rtl;
+    padding-top: 0;
 }
 
 /* סגנון עבור התמונה בצד ימין למעלה */
@@ -66,9 +67,6 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
     padding: var(--spacing-sm) 0;
     background: transparent;
@@ -82,7 +80,7 @@ header h1 {
 }
 
 main {
-    margin-top: 60px;
+    margin-top: 80px;
     padding: var(--spacing-lg);
     padding-right: 0.5rem;
 }
@@ -332,26 +330,26 @@ button:hover {
     left: 0;
     width: 100%;
     height: 100vh;
-    background: none !important;
-    padding-top: 300px;
-    padding-bottom: 100px;
-    overflow-y: auto;
-    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.5) !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     z-index: 1000;
+    overflow: hidden;
 }
 
 .modal-content {
-    background: none !important;
+    background: white !important;
     padding: var(--spacing-lg);
     border-radius: var(--radius-md);
     max-width: 90%;
     width: 400px;
-    max-height: 85vh;
+    max-height: 90vh;
     overflow-y: auto;
     position: relative;
     direction: rtl;
-    box-shadow: none;
-    margin: 0 auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 0;
     border: 1px solid rgba(0,0,0,0.05);
     animation: modalSlideIn 0.3s ease-out;
 }
@@ -427,9 +425,9 @@ button:hover {
 }
 
 .cancel-button {
-    background-color: var(--color-danger);
-    color: var(--color-white);
-    border: none;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
     padding: var(--spacing-sm) var(--spacing-lg);
     border-radius: var(--radius-sm);
     cursor: pointer;
@@ -437,7 +435,9 @@ button:hover {
 }
 
 .cancel-button:hover {
-    background-color: #c82333;
+    background-color: var(--color-danger);
+    color: var(--color-white);
+    border-color: var(--color-danger);
 }
 
 /* עיצוב לשדה הערות */
@@ -601,6 +601,7 @@ button:hover {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     width: 100%;
+    position: sticky;
 }
 
 .control-button {
@@ -614,7 +615,7 @@ button:hover {
     border-radius: 0;
     cursor: pointer;
     transition: all 0.3s ease;
-    position: relative;
+    position: fixed;
     overflow: hidden;
     text-align: center;
     white-space: nowrap;
@@ -1231,46 +1232,255 @@ button:hover {
     font-weight: 600;
 }
 
+/* עדכון הניווט הראשי */
 .main-nav {
-    position: sticky;
     top: 0;
     left: 0;
     right: 0;
-    width: 100vw;
+    background: white;
     padding: 1rem;
-    background: #fff;
-    z-index: 1000;
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
 }
 
 .main-nav-button {
-    width: 100% !important;
-    padding: 1rem;
-    margin: 0 !important;
+    padding: 1rem 2rem;
     border: none;
     border-radius: 8px;
-    font-weight: 600;
+    font-weight: bold;
+    font-size: 1.1rem;
     cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: #ffffff;
-    color: #374151;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    background-color: #3b82f6;
+    color: white;
+    width: 33.33%;
 }
 
 .main-nav-button:hover {
+    background-color: #2563eb;
     transform: translateY(-2px);
-    background-color: var(--color-primary);
-    color: white;
 }
 
 .main-nav-button.active {
-    background-color: var(--color-primary);
+    background-color: #10b981;
     color: white;
+}
+
+/* הוספת מרווח מתחת לניווט */
+.controls-row {
+    margin-top: 80px;
+}
+
+/* עיצוב למוצרים */
+.products-container {
+    padding: 1rem;
+}
+
+.products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1rem;
+}
+
+.products-search {
+    flex: 1;
+    max-width: 300px;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.add-product-btn {
+    background: #f59e0b;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.add-product-btn:hover {
+    background: #d97706;
+    transform: translateY(-2px);
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.product-card {
+    position: relative;
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1rem;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-2px) scale(1.02);
+}
+
+.product-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.product-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+}
+
+.product-price {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f59e0b;
+    margin-bottom: 0.5rem;
+}
+
+.product-details {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.product-category {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.product-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.product-edit-btn,
+.product-delete-btn {
+    flex: 1;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.product-edit-btn {
+    background: #3b82f6;
+    color: white;
+}
+
+.product-edit-btn:hover {
+    background: #2563eb;
+}
+
+.product-delete-btn {
+    background: #ef4444;
+    color: white;
+}
+
+.product-delete-btn:hover {
+    background: #dc2626;
+}
+
+/* עיצוב לטופס עריכת/הוספת מוצר */
+.product-form-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.product-form-group {
+    margin-bottom: 1rem;
+}
+
+.product-form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.product-form-group input,
+.product-form-group textarea,
+.product-form-group select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.product-form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* עיצוב לכפתורי ניווט צדדיים */
+.side-nav {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1000;
+}
+
+.side-nav-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.side-nav-button:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+}
+
+.side-nav-button.active {
+    background: #10b981;
+}
+
+.side-nav-button i {
+    font-size: 1.2rem;
 }

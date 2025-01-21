@@ -75,4 +75,195 @@
     0% { opacity: 1; }
     70% { opacity: 1; }
     100% { opacity: 0; }
+}
+
+/* עיצוב כפתורי ניווט */
+.nav-buttons {
+    display: inline-flex;
+    align-items: center;
+}
+
+.auth-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0 4px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.login-btn {
+    color: var(--color-primary);
+}
+
+.register-btn {
+    color: var(--color-text);
+}
+
+.auth-btn:hover {
+    text-decoration: underline;
+}
+
+/* עיצוב תפריט משתמש */
+.user-menu-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.user-menu-btn {
+    padding: 0.5rem 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.user-menu-btn:hover {
+    background-color: var(--color-primary-dark);
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background-color: white;
+    min-width: 250px;
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-md);
+    z-index: 1000;
+    margin-top: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+}
+
+.user-menu-dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/* עיצוב פרטי משתמש */
+.user-details {
+    padding: 1rem;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 1rem;
+}
+
+.user-info p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.edit-details-btn {
+    display: inline-block;
+    width: auto;
+    min-width: 120px;
+    padding: 0.5rem 1rem;
+    margin-top: 1rem;
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.edit-details-btn:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* עיצוב טופס עריכה */
+.edit-user-form {
+    padding: 1rem;
+}
+
+.edit-user-form.hidden {
+    display: none;
+}
+
+.user-details.hidden {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.save-btn, .cancel-btn {
+    display: inline-block;
+    width: auto;
+    min-width: 80px;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.save-btn {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.save-btn:hover {
+    background-color: var(--color-primary-dark);
+}
+
+.cancel-btn {
+    background-color: var(--color-error-light);
+    color: var(--color-error);
+}
+
+.cancel-btn:hover {
+    background-color: var(--color-error);
+    color: white;
+}
+
+.dropdown-item {
+    display: inline-block;
+    width: auto;
+    min-width: 120px;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    border: none;
+    background: none;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: var(--radius-sm);
+    margin: 0.25rem;
+}
+
+.dropdown-item:hover {
+    background-color: var(--color-background-light);
+    color: var(--color-primary);
 } 

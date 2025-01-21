@@ -112,7 +112,6 @@
 /* סגנון לשדות קלט (input) */
 input[type="text"],
 input[type="password"],
-input[type="email"],
 input[type="tel"],
 select {
     width: 100%; /* כל השדות יהיו באורך מלא */
@@ -144,54 +143,53 @@ input[type="tel"] {
     margin-top: 4px; /* יישור עם הטקסט */
 }
 
-
-
-/* כפתור התחברות והרשמה למעלה */
+/* כפתורי התחברות והרשמה */
 .auth-btn {
-    background-color: #4CAF50;
-    color: white;
-    padding: 6px 16px;
+    display: inline;
+    padding: 2px 4px;
+    margin: 0 4px;
     font-size: 14px;
+    line-height: 1;
+    border-radius: 4px;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s;
-    margin: 0;
-    width: auto;
+    color: white;
 }
 
-.auth-btn:hover {
-    background-color: #45a049;
+.auth-btn.login-btn {
+    background-color: #4CAF50;
 }
 
+.auth-btn.register-btn {
+    background-color: #007bff;
+}
+
+.auth-btn.login-btn:hover {
+    background-color: #388E3C;
+}
+
+.auth-btn.register-btn:hover {
+    background-color: #0056b3;
+}
+
+/* סגנון כפתורים אחרים במערכת */
+button:not(.auth-btn) {
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%;
+    cursor: pointer;
+    margin-top: 10px;
+}
 
 .close-modal:hover {
     background-color: #e53935;
 }
 
-/* סגנון כפתורים בתוך המודאלים */
-button {
-    
-    background-color: #007bff; /* צבע רקע כחול */
-    color: white; /* צבע טקסט לבן */
-    border: none;
-    padding: 12px 20px; /* ריפוד פנימי */
-    border-radius: 5px; /* קצוות מעוגלים */
-    font-size: 16px; /* גודל טקסט אחיד */
-    width: 100%; /* הכפתור יתפוס את כל הרוחב */
-    cursor: pointer; /* סמן יד על מנת להראות שזה לחיץ */
-    margin-top: 10px; /* רווח למעלה */
-}
-
-/* סגנון הכפתור במצב ריחוף */
-button:hover {
-    background-color: #0056b3; /* צבע רקע כחול כהה */
-}
-
-
 /* סגנון כפתור שכחתי סיסמה */
 #forgotPasswordButton {
-    
     background-color: #ee9b00; /* צבע רקע ירוק */
     color: white; /* צבע טקסט לבן */
     border: none;
@@ -206,7 +204,6 @@ button:hover {
 #forgotPasswordButton:hover {
     background-color: #ca6702; /* צבע רקע ירוק כהה */
 }
-
 
 /* כפתור שמירת קובץ משתמשים */
 #saveUsersButton {
@@ -234,15 +231,15 @@ button:hover {
     position: sticky;
     top: 0;
     z-index: 1000;
-    padding: 10px 20px;
+    padding: 15px 20px;
     background-color: #fb8500;
     width: 100%;
     box-sizing: border-box;
 }
 
 .logo-and-auth img {
-    max-height: 60px;
-    max-width: 120px;
+    max-height: 80px;
+    max-width: 160px;
     object-fit: contain;
     background: none !important;
 }
@@ -260,18 +257,6 @@ button:hover {
     font-weight: 500;
 }
 
-.auth-btn {
-    color: white;
-    padding: 6px 16px;
-    font-size: 14px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    margin: 0;
-    width: auto;
-}
-
 .user-greeting .auth-btn.logout {
     background-color: #9b5de5;
 }
@@ -282,10 +267,6 @@ button:hover {
 
 .user-greeting .auth-btn.order-history {
     background-color: #20b2aa;
-}
-
-.user-greeting .auth-btn:hover {
-    opacity: 0.9;
 }
 
 .home-logo {
