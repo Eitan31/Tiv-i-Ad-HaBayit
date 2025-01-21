@@ -60,20 +60,12 @@ let generateCartItems = () => {
     const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
     const cartTitle = loggedInUser ? `סל הקניות של ${loggedInUser.name}` : 'סל הקניות';
 
-    // יצירת כפתורי ניווט
-    label.innerHTML = `
-        <div class="nav-buttons">
-            <button class="edit-btn" onclick="window.location.href='edit.html'">עריכה</button>
-            <button class="orders-btn" onclick="window.location.href='orders.html'">הזמנות</button>
-            <button class="logout-btn" onclick="handleLogout()">התנתק</button>
-            <button class="manage-btn" onclick="window.location.href='manage.html'">ניהול</button>
-        </div>
-        <div class="cart-title">${cartTitle}</div>
-    `;
+    // יצירת כותרת בלבד
+    label.innerHTML = `<div class="cart-title">${cartTitle}</div>`;
 
     if (basketMap.size === 0) {
         shoppingCart.innerHTML = "";
-        label.innerHTML += `
+        label.innerHTML = `
             <h2>הסל ריק</h2>
             <a href="index.html">
                 <button class="HomeBtn">חזרה למסך הבית</button>
@@ -124,14 +116,6 @@ let generateCartItems = () => {
 
     shoppingCart.innerHTML = '';
     shoppingCart.appendChild(fragment);
-
-    // הוספת כפתורי פעולה
-    label.innerHTML += `
-        <div class="buttons-container">
-            <button onclick="checkout()" class="checkout">בצע הזמנה</button>
-            <button onclick="clearCart()" class="removeAll">הסרת כל הפריטים</button>
-        </div>
-    `;
 };
 
 // Attach event listeners to dynamic elements
@@ -220,12 +204,11 @@ let clearCart = () => {
 // Calculate total amount
 let totalAmount = () => {
     if (basketMap.size === 0) {
-        label.innerHTML = `
-            <h2>הסל ריק</h2>
-            <a href="index.html">
-                <button class="HomeBtn">חזרה למסך הבית</button>
-            </a>
-        `;
+        // עדכון המחיר הצף כשהסל ריק
+        const floatingPrice = document.getElementById('totalPriceFloating');
+        if (floatingPrice) {
+            floatingPrice.textContent = 'סה"כ: ₪0';
+        }
         return;
     }
 
@@ -234,7 +217,13 @@ let totalAmount = () => {
         return total + (item.item * (product?.price || 0));
     }, 0);
 
-    label.innerHTML = `
+    // עדכון המחיר הצף
+    const floatingPrice = document.getElementById('totalPriceFloating');
+    if (floatingPrice) {
+        floatingPrice.textContent = `סה"כ: ₪${amount}`;
+    }
+
+    label.innerHTML += `
         <h2>מחיר כולל: ${amount}₪</h2>
         <div class="buttons-container">
             <button onclick="checkout()" class="checkout">בצע הזמנה</button>

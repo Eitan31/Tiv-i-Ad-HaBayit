@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/user.css">
     <link rel="stylesheet" href="/css/cart.css">
+    <link rel="stylesheet" href="/css/user.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -17,35 +15,41 @@
             <a href="index.html">
                 <img src="https://www.dropbox.com/scl/fi/2g3fexz0my5hraoo0qvnq/house.png?rlkey=4tr7zrib6i9o3uglvot4hcswt&raw=1" alt="טבעי עד הבית" class="navbar-logo">
             </a>
-            <div class="auth-buttons">
-                <button id="loginButton" class="auth-btn">התחברות</button>
-                <button id="signupButton" class="auth-btn">הרשמה</button>
-                <button id="logoutButton" class="auth-btn" style="display:none;">התנתק</button>
+            <div class="user-menu">
+                <!-- כפתורי התחברות והרשמה -->
+                <div class="guest-buttons">
+                    <button class="menu-btn login-btn">התחברות</button>
+                    <button class="menu-btn register-btn">הרשמה</button>
+                </div>
+                <!-- כפתורים למשתמש מחובר -->
+                <div class="user-buttons" style="display: none;">
+                    <button class="menu-btn profile-btn">פרטים אישיים</button>
+                    <button class="menu-btn orders-btn">הזמנות</button>
+                    <button class="menu-btn admin-btn" style="display: none;">ניהול</button>
+                    <button class="menu-btn logout-btn">התנתק</button>
+                </div>
             </div>
-
-            
         </div>
 
         <a href="cart.html">
             <div class="cart">
                 <i class="bi bi-cart4"></i>
                 <div id="cartAmount" class="cartAmount">0</div>
-                
             </div>
         </a>
     </div>
 
     <div id="label" class="text-center"></div>
-    <div id="shopping-cart" class="shopping-cart">
-        
+    <div id="shopping-cart" class="shopping-cart"></div>
 
+    <div class="floating-order-container">
+        <div class="total-price-floating" id="totalPriceFloating">סה"כ: ₪0</div>
+        <button class="order-button-floating" id="orderButtonFloating" onclick="checkout()">בצע הזמנה</button>
     </div>
-
-    <div id="userContainer"></div>
-
 
     <script type="module" src="/js/product.js"></script>
     <script type="module" src="/js/cart.js"></script>
     <script type="module" src="/js/user.js"></script>
+    <script type="module" src="/js/auth.js"></script>
 </body>
 </html>

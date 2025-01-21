@@ -17,11 +17,19 @@
             <a href="index.html">
                 <img src="https://www.dropbox.com/scl/fi/2g3fexz0my5hraoo0qvnq/house.png?rlkey=4tr7zrib6i9o3uglvot4hcswt&raw=1" alt="טבעי עד הבית" class="navbar-logo">
             </a>
-            <div class="auth-buttons">
-                <button id="loginButton" class="auth-btn">התחברות</button>
-                <button id="signupButton" class="auth-btn">הרשמה</button>
-                <button id="logoutButton" class="auth-btn" style="display:none;">התנתק/י</button>
-                <button onclick="window.location.href='admin.html'" class="auth-btn">ניהול</button>
+            <div class="user-menu">
+                <!-- כפתורי התחברות והרשמה -->
+                <div class="guest-buttons">
+                    <button class="menu-btn login-btn">התחברות</button>
+                    <button class="menu-btn register-btn">הרשמה</button>
+                </div>
+                <!-- כפתורים למשתמש מחובר -->
+                <div class="user-buttons" style="display: none;">
+                    <button class="menu-btn profile-btn">פרטים אישיים</button>
+                    <button class="menu-btn orders-btn">הזמנות</button>
+                    <button class="menu-btn admin-btn" style="display: none;">ניהול</button>
+                    <button class="menu-btn logout-btn">התנתק</button>
+                </div>
             </div>
         </div>
         <a href="cart.html">
@@ -39,6 +47,7 @@
     <script type="module" src="/js/product.js"></script>
     <script type="module" src="/js/main.js"></script>
     <script type="module" src="/js/user.js"></script>
+    <script type="module" src="/js/auth.js"></script>
     <script>
     function initAutocomplete() {
         const input = document.getElementById('addressInput');

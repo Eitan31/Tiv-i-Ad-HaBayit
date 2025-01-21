@@ -31,43 +31,92 @@
     --radius-lg: 24px;
 }
 
+/* מחיקת סגנונות כפתורי ניווט */
+.nav-buttons,
+.nav-buttons button,
+.nav-buttons .edit-btn,
+.nav-buttons .orders-btn,
+.nav-buttons .logout-btn,
+.nav-buttons .manage-btn,
+.nav-buttons button:hover {
+    display: none;
+}
+
+.cart-title {
+    color: var(--color-primary);
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 10px 0;
+    text-align: center;
+}
+
 /* הסטייל לכפתורים העליונים */
 #label {
-    top: 0;
-    color: white;
-    padding: 10px;
+    position: sticky;
+    top: 80px;
+    background: linear-gradient(145deg, var(--color-white), var(--color-bg));
+    padding: var(--spacing-xs);
     text-align: center;
-    z-index: 10;
-    font-size: 18px;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 1px solid var(--color-border);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 #label h2 {
-    background-color: #8ecae6;
-    color: #001d3d;
-    margin: 0;
+    background: linear-gradient(145deg, var(--color-secondary), var(--color-secondary-hover));
+    color: var(--color-white);
+    margin: var(--spacing-sm) auto;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+#label .total-price {
+    background-color: #003566;
+    color: white;
+    font-size: 18px;
     padding: 10px;
-    font-size: 25px;
+    border-radius: 4px;
     text-align: center;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 2px;
     width: fit-content;
-    margin: 0 auto;
-    font-family: 'Lobster', cursive;
+    margin: 10px auto;
+    display: block;
+}
+
+#label .buttons-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 #label .checkout, 
 #label .removeAll {
     color: white;
-    padding: 10px 20px;
-    font-size: 16px;
+    padding: 8px 16px;
+    font-size: 14px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    margin-top: 10px;
     width: auto;
-    flex: 1;
+}
+
+#label .removeAll {
+    background-color: #ef4444;
+}
+
+#label .checkout {
+    background-color: #22c55e;
 }
 
 #label .removeAll:hover {
@@ -78,14 +127,8 @@
     background-color: darkgreen;
 }
 
-#label .buttons-container {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 10px;
-}
-
 #shopping-cart {
+    margin-top: 100px;
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
@@ -93,6 +136,20 @@
     gap: 15px;
     direction: rtl;
     padding: 20px;
+}
+
+#shopping-cart .total-price {
+    background-color: #003566;
+    color: white;
+    font-size: 18px;
+    padding: 10px;
+    margin: 10px auto;
+    border-radius: 4px;
+    text-align: center;
+    width: fit-content;
+    display: block;
+    position: relative;
+    z-index: 10;
 }
 
 .cart-item {
@@ -204,135 +261,15 @@
     cursor: pointer;
 }
 
-#auth-button {
-    display: none;
-}
-
-/* התאמה למסכים קטנים */
-@media (max-width: 768px) {
-    #label {
-        padding: var(--spacing-md);
-    }
-    
-    #shopping-cart {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
-    }
-    
-    .cart-item {
-        min-height: 250px;
-        padding: var(--spacing-md);
-    }
-    
-    .cart-item img {
-        width: 100px;
-        height: 100px;
-    }
-}
-
-.auth-buttons {
-    display: flex;
-    flex: 0 1 auto;
-    z-index: 101;
-    position: relative;
-    gap: var(--spacing-xs);
-    padding: 0 var(--spacing-sm);
-}
-
-.auth-btn {
-    background: transparent;
-    color: var(--color-white);
-    padding: 0 var(--spacing-md);
-    font-size: 1.1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 0;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-xs);
-    position: relative;
-    overflow: hidden;
-}
-
-.auth-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
-}
-
-.auth-btn:hover::before {
-    transform: translateY(0);
-}
-
-.auth-btn.login {
-    background: var(--color-secondary);
-}
-
-.auth-btn.login:hover {
-    background: var(--color-secondary-hover);
-}
-
-.auth-btn.register {
-    background: transparent;
-    border: 2px solid var(--color-white);
-}
-
-.auth-btn.register:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
 /* עדכון כפתורי הניווט */
-.nav-buttons {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-    width: 100%;
-    margin: var(--spacing-sm) 0;
-}
-
-.nav-buttons button {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 120px;
-    color: var(--color-white);
-}
-
-.nav-buttons .edit-btn {
-    background: linear-gradient(145deg, var(--color-success), var(--color-success-hover));
-}
-
-.nav-buttons .orders-btn {
-    background: linear-gradient(145deg, #ffc300, #ffa200);
-}
-
-.nav-buttons .logout-btn {
-    background: linear-gradient(145deg, #9333ea, #7e22ce);
-}
-
-.nav-buttons .manage-btn {
-    background: linear-gradient(145deg, #1f2937, #111827);
-}
-
+.nav-buttons,
+.nav-buttons button,
+.nav-buttons .edit-btn,
+.nav-buttons .orders-btn,
+.nav-buttons .logout-btn,
+.nav-buttons .manage-btn,
 .nav-buttons button:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    all: unset;
 }
 
 /* עדכון כפתורי הכמות */
@@ -425,4 +362,96 @@
     display: flex;
     gap: var(--spacing-sm);
     justify-content: center;
+}
+
+.cart-item .bi-cart {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    color: var(--color-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .floating-checkout {
+        display: none;
+    }
+}
+
+.floating-order-container {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+}
+
+.total-price-floating {
+    background-color: #669bbc;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.order-button-floating {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.order-button-floating:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+}
+
+/* התאמה למסכים קטנים */
+@media (max-width: 768px) {
+    #label {
+        padding: var(--spacing-md);
+    }
+    
+    #shopping-cart {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+    }
+    
+    .cart-item {
+        min-height: 250px;
+        padding: var(--spacing-md);
+    }
+    
+    .cart-item img {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+/* מחיקת כל הסגנונות הקשורים לכפתורי התחברות */
+.auth-buttons,
+.auth-btn,
+#loginButton,
+#signupButton,
+#logoutButton,
+.nav-buttons,
+.nav-buttons button,
+.nav-buttons .edit-btn,
+.nav-buttons .orders-btn,
+.nav-buttons .logout-btn,
+.nav-buttons .manage-btn,
+.nav-buttons button:hover {
+    display: none !important;
 }

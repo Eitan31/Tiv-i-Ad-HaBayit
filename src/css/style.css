@@ -75,100 +75,23 @@ html, body {
 
 .logo-and-auth {
     display: flex;
-    align-items: stretch;
-    flex: 1;
-    margin: 0;
-    gap: 0;
-}
-
-.auth-buttons {
-    display: flex;
-    flex: 1;
-    z-index: 101;
-    position: relative;
-    gap: 0;
-}
-
-.auth-btn {
-    background: transparent;
-    color: var(--color-white);
-    padding: 0 var(--spacing-md);
-    font-size: 1.1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 0;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    min-width: 0;
-    flex: 1;
-    display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-xs);
-    position: relative;
-    overflow: hidden;
-}
-
-.auth-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
-}
-
-.auth-btn:hover::before {
-    transform: translateY(0);
-}
-
-.auth-btn.active {
-    background: var(--color-success);
-}
-
-.auth-btn i {
-    font-size: 1.2rem;
-    margin-left: var(--spacing-xs);
-}
-
-.auth-btn.login {
-    background: var(--color-secondary);
-    border: none;
-}
-
-.auth-btn.login:hover {
-    background: var(--color-secondary-hover);
-}
-
-.auth-btn.register {
-    background: transparent;
-    border: 2px solid var(--color-white);
-}
-
-.auth-btn.register:hover {
-    background: rgba(255, 255, 255, 0.1);
+    flex: 1;
 }
 
 .cart {
-    background: linear-gradient(145deg, var(--color-secondary), var(--color-secondary-hover));
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: fixed;
-    top: var(--spacing-md);
-    left: var(--spacing-lg);
-    color: var(--color-white);
-    font-size: 1.8rem;
-    z-index: 101;
-    border: 1px solid rgba(255, 255, 255, 0.2);
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    justify-content: center;
+    background: linear-gradient(145deg, var(--color-secondary), var(--color-secondary-hover));
+    color: var(--color-white);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: var(--spacing-sm);
+    position: relative;
 }
 
 .cart:hover {
@@ -481,56 +404,8 @@ html, body {
     .logo-and-auth {
         flex-direction: column;
     }
-
-    .auth-buttons {
-        flex-direction: row;
-    }
-
-    .auth-btn {
-        padding: var(--spacing-sm);
-        font-size: 0.9rem;
-    }
 }
 
-.nav-buttons {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-    width: 100%;
-    margin: var(--spacing-sm) 0;
-}
-
-.nav-buttons button {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 120px;
-    color: var(--color-white);
-}
-
-.nav-buttons .edit-btn {
-    background: linear-gradient(145deg, var(--color-success), var(--color-success-hover));
-}
-
-.nav-buttons .orders-btn {
-    background: linear-gradient(145deg, #ffc300, #ffa200);
-}
-
-.nav-buttons .logout-btn {
-    background: linear-gradient(145deg, #9333ea, #7e22ce);
-}
-
-.nav-buttons .manage-btn {
-    background: linear-gradient(145deg, #1f2937, #111827);
-}
-
-.nav-buttons button:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
 /* עיצוב מודל */
 .modal-overlay {
     position: fixed;
@@ -888,4 +763,108 @@ html, body {
 
 .card-content {
     background: transparent !important;
+}
+
+.user-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.guest-buttons,
+.user-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+}
+
+.menu-btn {
+    background: transparent;
+    color: var(--color-white);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.menu-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.login-btn {
+    background: var(--color-success);
+}
+
+.login-btn:hover {
+    background: var(--color-success-hover);
+}
+
+.register-btn {
+    background: var(--color-secondary);
+}
+
+.register-btn:hover {
+    background: var(--color-secondary-hover);
+}
+
+.profile-btn {
+    background: var(--color-secondary);
+}
+
+.profile-btn:hover {
+    background: var(--color-secondary-hover);
+}
+
+.orders-btn {
+    background: var(--color-primary);
+}
+
+.orders-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+.admin-btn {
+    background: #4a5568;
+}
+
+.admin-btn:hover {
+    background: #2d3748;
+}
+
+.logout-btn {
+    background: #e53e3e;
+}
+
+.logout-btn:hover {
+    background: #c53030;
+}
+
+@media (max-width: 768px) {
+    .logo-and-auth {
+        flex-direction: column;
+    }
+
+    .user-menu {
+        margin: var(--spacing-sm) 0;
+        width: 100%;
+    }
+
+    .guest-buttons,
+    .user-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .menu-btn {
+        min-width: 140px;
+    }
 } 
