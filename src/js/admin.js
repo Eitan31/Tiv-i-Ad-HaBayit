@@ -102,21 +102,47 @@ const UsersHelpers = {
 };
 
 // פונקציות עזר גלובליות
-function renderUserNotes(user) {
-    if (!user.notes || !Array.isArray(user.notes) || user.notes.length === 0) {
+function renderUserNotes(user, isEditMode = false) {
+    let notes = [];
+    try {
+        if (typeof user.notes === 'string') {
+            notes = JSON.parse(user.notes);
+        } else if (Array.isArray(user.notes)) {
+            notes = user.notes;
+        } else if (user.notes) {
+            notes = [user.notes];
+        }
+    } catch (e) {
+        console.error('Error parsing notes:', e);
+        notes = [];
+    }
+
+    notes = notes.filter(note => note && String(note).trim() !== '');
+
+    if (notes.length === 0 && !isEditMode) {
         return '';
     }
 
-    const notes = user.notes.filter(note => note.trim() !== '');
-    if (notes.length === 0) {
-        return '';
-    }
+    const notesHtml = notes.map((note, index) => 
+        `<div style="padding: 8px; background-color: #f3f4f6; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="flex-grow: 1;">${note}</span>
+            ${isEditMode ? `
+                <button onclick="removeNote('${user.id}', ${index})" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
+            ` : ''}
+        </div>`
+    ).join('\n');
 
     return `
-        <div class="user-notes">
-            <ul>
-                ${notes.map(note => `<li>${note}</li>`).join('')}
-            </ul>
+        <div style="margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0;">הערות</h4>
+                ${isEditMode ? `
+                    <button onclick="addNote('${user.id}')" style="background-color: #10b981; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer;">+</button>
+                ` : ''}
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                ${notesHtml}
+            </div>
         </div>
     `;
 }
@@ -161,7 +187,7 @@ function renderUser(user) {
             ` : ''}
         </div>
     `;
-
+    
     const userDetails = `
         <div class="user-details">
             <p><i class="fas fa-phone"></i> ${UsersHelpers.formatPhone(user.phone)}</p>
@@ -178,6 +204,7 @@ function renderUser(user) {
     `;
     
     const userNotes = renderUserNotes(user);
+    const adminNotesSection = displayAdminNotes(user, false);
 
     const userActions = `
         <div class="user-actions">
@@ -197,6 +224,7 @@ function renderUser(user) {
                 ${userDetails}
                 ${locationLinks}
                 ${userNotes}
+                ${adminNotesSection}
                 ${userActions}
             </div>
         </div>
@@ -284,8 +312,8 @@ async function loadUsers(cityFilter = 'all', showOnlyNew = false) {
         await loadUserStats();
         
     } catch (error) {
-        console.error('שגיאה בטעינת משתמשים:', error);
-        alert('שגיאה בטעינת רשימת המשתמשים');
+        console.error('שגיאה בטעינת המשתמשים:', error);
+        showErrorMessage('אירעה שגיאה בטעינת המשתמשים');
     }
 }
 
@@ -632,6 +660,15 @@ async function showUserForm(user = null) {
             user.notes = user.notes ? [user.notes] : [];
         }
     }
+
+    // המרת admin_notes למערך
+    if (user && typeof user.admin_notes === 'string') {
+        try {
+            user.admin_notes = JSON.parse(user.admin_notes);
+        } catch (e) {
+            user.admin_notes = user.admin_notes ? [user.admin_notes] : [];
+        }
+    }
     
     // בדיקה אם כבר קיים מודל פתוח
     const existingModal = document.querySelector('.edit-user-modal-overlay');
@@ -722,16 +759,34 @@ async function showUserForm(user = null) {
                             (user?.notes || []).map((note, index) => `
                                 <div class="note-row">
                                     <input type="text" name="notes[]" value="${note}">
-                                    <button type="button" onclick="removeNote(this)" class="remove-note">-</button>
+                                    <button type="button" onclick="removeNote('${user.id}', ${index})" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
                                 </div>
                             `).join('') : 
                             `<div class="note-row">
                                 <input type="text" name="notes[]">
-                                <button type="button" onclick="removeNote(this)" class="remove-note">-</button>
+                                <button type="button" onclick="removeNote(this)" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
                             </div>`
                         }
                     </div>
-                    <button type="button" onclick="addNote()" class="add-note">+</button>
+                    <button type="button" onclick="addNote()" class="add-note" style="background-color: #10b981; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px;">+</button>
+                </div>
+                <div class="form-group">
+                    <label>הערות מנהל</label>
+                    <div id="adminNotesContainer">
+                        ${(user?.admin_notes || []).length > 0 ? 
+                            (user?.admin_notes || []).map((note, index) => `
+                                <div class="note-row">
+                                    <input type="text" name="admin_notes[]" value="${note}">
+                                    <button type="button" onclick="removeAdminNoteFromForm(this)" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
+                                </div>
+                            `).join('') : 
+                            `<div class="note-row">
+                                <input type="text" name="admin_notes[]">
+                                <button type="button" onclick="removeAdminNoteFromForm(this)" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
+                            </div>`
+                        }
+                    </div>
+                    <button type="button" onclick="addAdminNoteToForm()" class="add-note" style="background-color: #10b981; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px;">+</button>
                 </div>
                 <div class="form-group">
                     <label>קישור ל-Google Maps</label>
@@ -777,6 +832,11 @@ async function showUserForm(user = null) {
             .map(input => input.value)
             .filter(note => note.trim() !== '');
 
+        // איסוף הערות מנהל
+        const admin_notes = Array.from(form.querySelectorAll('input[name="admin_notes[]"]'))
+            .map(input => input.value)
+            .filter(note => note.trim() !== '');
+        
         // ניקוי מספר הטלפון מתווים מיוחדים
         const phone = formData.get('phone').replace(/\D/g, '');
         
@@ -791,7 +851,8 @@ async function showUserForm(user = null) {
             position: position,
             password: formData.get('password') || phone,
             code: formData.get('code') || '',
-            notes: notes.length > 0 ? notes : [],
+            notes: JSON.stringify(notes),
+            admin_notes: JSON.stringify(admin_notes), // שינוי השם לadmin_notes
             debt_balance: parseFloat(formData.get('debt_balance')) || 0,
             maps: formData.get('maps') || '',
             waze: formData.get('waze') || '',
@@ -837,6 +898,8 @@ async function showUserForm(user = null) {
                 throw new Error('Error saving user');
             }
 
+            const savedData = await response.json();
+
             // סגירת המודל והצגת הודעת הצלחה
             modal.remove();
             showSuccessMessage(isEdit ? 'המשתמש עודכן בהצלחה' : 'המשתמש נוסף בהצלחה');
@@ -855,6 +918,25 @@ async function showUserForm(user = null) {
     const citySelect = modal.querySelector('#citySelect');
     if (citySelect) {
         toggleOtherCityInput(citySelect);
+    }
+}
+
+// פונקציות חדשות לטיפול בהערות מנהל בטופס
+window.addAdminNoteToForm = function() {
+    const container = document.getElementById('adminNotesContainer');
+    const noteRow = document.createElement('div');
+    noteRow.className = 'note-row';
+    noteRow.innerHTML = `
+        <input type="text" name="admin_notes[]" value="">
+        <button type="button" onclick="removeAdminNoteFromForm(this)" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
+    `;
+    container.appendChild(noteRow);
+}
+
+window.removeAdminNoteFromForm = function(button) {
+    const noteRow = button.closest('.note-row');
+    if (noteRow) {
+        noteRow.remove();
     }
 }
 
@@ -983,7 +1065,7 @@ window.addNote = function() {
     noteRow.className = 'note-row';
     noteRow.innerHTML = `
         <input type="text" name="notes[]" value="">
-        <button type="button" onclick="removeNote(this)" class="remove-note">-</button>
+        <button type="button" onclick="removeNote(this)" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
     `;
     container.appendChild(noteRow);
 }
@@ -1002,6 +1084,27 @@ async function saveUser(userData) {
         if (Array.isArray(userData.notes)) {
             userData.notes = JSON.stringify(userData.notes);
         }
+        
+        // המרת הערות מנהל למחרוזת JSON אם הן מגיעות כמערך
+        if (Array.isArray(userData.admin_notes)) {
+            userData.admin_notes = JSON.stringify(userData.admin_notes);
+        } else if (typeof userData.admin_notes === 'string') {
+            // אם זה כבר מחרוזת JSON, נוודא שהיא תקינה
+            try {
+                JSON.parse(userData.admin_notes);
+            } catch (e) {
+                // אם זו לא מחרוזת JSON תקינה, נעטוף אותה במערך ונמיר ל-JSON
+                userData.admin_notes = JSON.stringify([userData.admin_notes]);
+            }
+        } else if (userData.admin_notes) {
+            // אם יש ערך אבל הוא לא מערך ולא מחרוזת, נעטוף אותו במערך
+            userData.admin_notes = JSON.stringify([userData.admin_notes]);
+        } else {
+            // אם אין ערך, ניצור מערך ריק
+            userData.admin_notes = JSON.stringify([]);
+        }
+
+        console.log('Saving user data:', userData); // לוג לבדיקה
 
         const response = await fetch('/api/users', {
             method: 'POST',
@@ -1033,6 +1136,27 @@ async function updateUser(userData) {
         if (Array.isArray(userData.notes)) {
             userData.notes = JSON.stringify(userData.notes);
         }
+        
+        // המרת הערות מנהל למחרוזת JSON אם הן מגיעות כמערך
+        if (Array.isArray(userData.admin_notes)) {
+            userData.admin_notes = JSON.stringify(userData.admin_notes);
+        } else if (typeof userData.admin_notes === 'string') {
+            // אם זה כבר מחרוזת JSON, נוודא שהיא תקינה
+            try {
+                JSON.parse(userData.admin_notes);
+            } catch (e) {
+                // אם זו לא מחרוזת JSON תקינה, נעטוף אותה במערך ונמיר ל-JSON
+                userData.admin_notes = JSON.stringify([userData.admin_notes]);
+            }
+        } else if (userData.admin_notes) {
+            // אם יש ערך אבל הוא לא מערך ולא מחרוזת, נעטוף אותו במערך
+            userData.admin_notes = JSON.stringify([userData.admin_notes]);
+        } else {
+            // אם אין ערך, ניצור מערך ריק
+            userData.admin_notes = JSON.stringify([]);
+        }
+
+        console.log('Updating user data:', userData); // לוג לבדיקה
 
         const response = await fetch(`/api/users/${userData.id}`, {
             method: 'PUT',
@@ -1592,3 +1716,258 @@ function createSideNavigation() {
     `;
     document.body.appendChild(sideNav);
 }
+
+// פונקציות לטיפול בהערות מנהל
+async function addAdminNote(userId) {
+    const note = prompt('הכנס הערת מנהל חדשה:');
+    if (!note || note.trim() === '') return;
+    
+    try {
+        // קבלת פרטי המשתמש
+        const response = await fetch(`/api/users/${userId}`);
+        if (!response.ok) throw new Error('שגיאה בטעינת פרטי המשתמש');
+        const user = await response.json();
+        
+        // המרת הערות קיימות למערך
+        let adminNotes = [];
+        try {
+            if (typeof user.admin_notes === 'string') {
+                adminNotes = JSON.parse(user.admin_notes);
+            } else if (Array.isArray(user.admin_notes)) {
+                adminNotes = user.admin_notes;
+            } else if (user.admin_notes) {
+                adminNotes = [user.admin_notes];
+            }
+        } catch (e) {
+            adminNotes = [];
+        }
+        
+        // הוספת ההערה החדשה
+        adminNotes.push(note.trim());
+        
+        // עדכון המשתמש עם ההערה החדשה
+        const updatedUser = {
+            ...user,
+            admin_notes: JSON.stringify(adminNotes) // המרה ל-JSON לפני השמירה
+        };
+        
+        console.log('Updating user with admin notes:', updatedUser); // לוג לבדיקה
+        
+        // שליחת העדכון לשרת
+        const updateResponse = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedUser)
+        });
+        
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
+            console.error('Server error:', errorData);
+            throw new Error('שגיאה בעדכון הערות המנהל');
+        }
+        
+        // קבלת המידע המעודכן מהשרת
+        const updatedData = await updateResponse.json();
+        console.log('Server response:', updatedData); // לוג לבדיקה
+        
+        // ניקוי המטמון ורענון התצוגה
+        UsersCache.clear();
+        await loadUsers();
+        
+        // הצגת הודעת הצלחה
+        showSuccessMessage('הערת המנהל נוספה בהצלחה');
+        
+    } catch (error) {
+        console.error('Error adding admin note:', error);
+        showErrorMessage('אירעה שגיאה בהוספת הערת המנהל: ' + error.message);
+    }
+}
+
+async function removeAdminNote(userId, index) {
+    try {
+        const response = await fetch(`/api/users/${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch user data');
+        const user = await response.json();
+        
+        let notes = [];
+        try {
+            notes = JSON.parse(user.notes || '[]');
+        } catch (e) {
+            notes = Array.isArray(user.notes) ? user.notes : [];
+        }
+        
+        notes.splice(index, 1);
+        
+        const updateResponse = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ...user,
+                notes: JSON.stringify(notes)
+            })
+        });
+        
+        if (!updateResponse.ok) throw new Error('Failed to update user');
+        
+        // רענון התצוגה
+        await UsersCache.clear();
+        await loadUsers();
+        
+    } catch (error) {
+        console.error('Error removing note:', error);
+        alert('שגיאה במחיקת ההערה');
+    }
+}
+
+// פונקציה להצגת הערות מנהל בממשק המנהל
+function displayAdminNotes(user, isEditMode = false) {
+    let adminNotes = [];
+    try {
+        if (typeof user.admin_notes === 'string') {
+            adminNotes = JSON.parse(user.admin_notes);
+        } else if (Array.isArray(user.admin_notes)) {
+            adminNotes = user.admin_notes;
+        } else if (user.admin_notes) {
+            adminNotes = [user.admin_notes];
+        }
+    } catch (e) {
+        console.error('Error parsing admin notes:', e);
+        adminNotes = [];
+    }
+
+    // סינון הערות ריקות
+    adminNotes = adminNotes.filter(note => note && note.trim() !== '');
+
+    // אם אין הערות מנהל ולא במצב עריכה - לא מציגים כלום
+    if (!isEditMode && adminNotes.length === 0) {
+        return '';
+    }
+
+    // הצגת הערות קיימות רק אם יש הערות
+    const notesContent = adminNotes.map((note, index) => `
+        <div class="admin-note">
+            <span>${note}</span>
+            ${isEditMode ? `
+                <button onclick="removeAdminNote('${user.id}', ${index})" class="remove-note" style="background-color: #dc2626; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">-</button>
+            ` : ''}
+        </div>
+    `).join('');
+
+    // הוספת כפתור הוספת הערה במצב עריכה
+    const addButton = isEditMode ? `
+        <button onclick="addAdminNote('${user.id}')" class="add-admin-note-btn" style="background-color: #10b981; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px;">+ הוסף הערת מנהל</button>
+    ` : '';
+
+    return `
+        <div class="admin-notes-section">
+            ${notesContent}
+            ${addButton}
+        </div>
+    `;
+}
+
+// פונקציות לטיפול בהערות רגילות
+async function addNote(userId) {
+    const note = prompt('הכנס הערה חדשה:');
+    if (!note || note.trim() === '') return;
+    
+    try {
+        const response = await fetch(`/api/users/${userId}`);
+        if (!response.ok) throw new Error('שגיאה בטעינת פרטי המשתמש');
+        const user = await response.json();
+        
+        // המרת הערות קיימות למערך
+        let notes = [];
+        try {
+            if (typeof user.notes === 'string') {
+                notes = JSON.parse(user.notes);
+            } else if (Array.isArray(user.notes)) {
+                notes = user.notes;
+            } else if (user.notes) {
+                notes = [user.notes];
+            }
+        } catch (e) {
+            notes = user.notes ? [user.notes] : [];
+        }
+        
+        // הוספת ההערה החדשה
+        notes.push(note.trim());
+        
+        // עדכון המשתמש עם ההערה החדשה
+        const updatedUser = {
+            ...user,
+            notes: JSON.stringify(notes)
+        };
+        
+        const updateResponse = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedUser)
+        });
+        
+        if (!updateResponse.ok) throw new Error('שגיאה בעדכון ההערות');
+        
+        // ניקוי המטמון ורענון התצוגה
+        UsersCache.clear();
+        await loadUsers();
+        
+        showSuccessMessage('ההערה נוספה בהצלחה');
+        
+    } catch (error) {
+        console.error('Error adding note:', error);
+        showErrorMessage('אירעה שגיאה בהוספת ההערה: ' + error.message);
+    }
+}
+
+async function removeNote(userId, index) {
+    try {
+        const response = await fetch(`/api/users/${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch user data');
+        const user = await response.json();
+        
+        let notes = [];
+        try {
+            notes = JSON.parse(user.notes || '[]');
+        } catch (e) {
+            notes = Array.isArray(user.notes) ? user.notes : [];
+        }
+        
+        notes.splice(index, 1);
+        
+        const updateResponse = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ...user,
+                notes: JSON.stringify(notes)
+            })
+        });
+        
+        if (!updateResponse.ok) throw new Error('Failed to update user');
+        
+        // רענון התצוגה
+        await UsersCache.clear();
+        await loadUsers();
+        
+    } catch (error) {
+        console.error('Error removing note:', error);
+        alert('שגיאה במחיקת ההערה');
+    }
+}
+
+// פונקציה להצגת טופס עריכת משתמש
+function displayUserEditForm(user) {
+    // ... existing code ...
+    const notesSection = displayAdminNotes(user, true);
+    // ... existing code ...
+}
+
+

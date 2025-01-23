@@ -204,7 +204,6 @@ let clearCart = () => {
 // Calculate total amount
 let totalAmount = () => {
     if (basketMap.size === 0) {
-        // עדכון המחיר הצף כשהסל ריק
         const floatingPrice = document.getElementById('totalPriceFloating');
         if (floatingPrice) {
             floatingPrice.textContent = 'סה"כ: ₪0';
@@ -226,7 +225,7 @@ let totalAmount = () => {
     label.innerHTML += `
         <h2>מחיר כולל: ${amount}₪</h2>
         <div class="buttons-container">
-            <button onclick="checkout()" class="checkout">בצע הזמנה</button>
+            <button onclick="submitOrder()" class="checkout">בצע הזמנה</button>
             <button onclick="clearCart()" class="removeAll">הסרת כל הפריטים</button>
         </div>
     `;
@@ -241,7 +240,8 @@ Object.assign(window, {
         basket = [];
         basketMap.clear();
         updateCart();
-    }
+    },
+    submitOrder
 });
 
 // אתחול
@@ -270,3 +270,76 @@ const checkout = () => {
     clearCart();
     window.location.href = "index.html";
 };
+
+// פונקציה לשליחת הזמנה
+async function submitOrder() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+        alert('יש להתחבר למערכת כדי לבצע הזמנה');
+        return;
+    }
+
+    if (basketMap.size === 0) {
+        alert('העגלה ריקה');
+        return;
+    }
+
+    try {
+        // קבלת פרטי המשתמש מהשרת
+        const userResponse = await fetch(`http://localhost:3000/api/users/${user.id}`);
+        if (!userResponse.ok) {
+            throw new Error('שגיאה בקבלת פרטי משתמש');
+        }
+        const userData = await userResponse.json();
+
+        // המרת פריטי העגלה לפורמט המתאים להזמנה
+        const orderItems = [];
+        let totalAmount = 0;
+
+        for (const [id, item] of basketMap.entries()) {
+            const product = shopItemsMap.get(id);
+            const itemTotal = item.item * product.price;
+            totalAmount += itemTotal;
+
+            orderItems.push({
+                productId: parseInt(id),
+                quantity: item.item
+            });
+        }
+
+        const orderData = {
+            userId: userData.id,
+            items: JSON.stringify(orderItems)
+        };
+
+        const response = await fetch('http://localhost:3000/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(orderData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            clearCart();
+            localStorage.removeItem("data");
+            alert('ההזמנה נשלחה בהצלחה! מספר הזמנה: ' + result.orderId);
+            window.location.href = 'index.html';
+        } else {
+            const error = await response.json();
+            throw new Error(error.message || 'שגיאה בשליחת ההזמנה');
+        }
+    } catch (error) {
+        console.error('Error submitting order:', error);
+        alert('אירעה שגיאה בשליחת ההזמנה: ' + error.message);
+    }
+}
+
+// עדכון כפתור השליחה בעגלה
+function updateCartButtons() {
+    const checkoutBtn = document.querySelector('.checkout');
+    if (checkoutBtn) {
+        checkoutBtn.onclick = submitOrder;
+    }
+}

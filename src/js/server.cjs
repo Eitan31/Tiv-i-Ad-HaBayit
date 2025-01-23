@@ -132,7 +132,24 @@ app.get('/api/users', async (req, res) => {
     }
 
     const [rows] = await connection.execute(query, values);
-    res.json(rows);
+    
+    // עיבוד הערות לכל המשתמשים
+    const processedUsers = rows.map(user => {
+        // טיפול בהערות רגילות
+        let notes = [];
+        try {
+            notes = JSON.parse(user.notes || '[]');
+        } catch (e) {
+            notes = user.notes ? [user.notes] : [];
+        }
+        
+        return {
+            ...user,
+            notes: JSON.stringify(notes)
+        };
+    });
+    
+    res.json(processedUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Error fetching users' });
@@ -142,7 +159,7 @@ app.get('/api/users', async (req, res) => {
 
 // הוספת משתמש חדש
 app.post('/api/users', async (req, res) => {
-  const { name, phone, address, city, position, cart, purchases, password, notes, code, debt_balance} = req.body;
+    const { name, phone, address, city, position, cart, purchases, password, admin_notes, code, debt_balance, notes } = req.body;
 
   if (!name || !phone || !address || !city) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -151,26 +168,28 @@ app.post('/api/users', async (req, res) => {
   const id = uuidv4();
   const location = encodeURIComponent(`${address} ${city}`);
   const maps = `https://goo.gl/maps?q=${location}`;
-  const waze = `https://waz.li/${location}`;
+  const waze = `https://waz.li/${location} navigate=yes`;
 
   try {
     await connection.execute(
-      `INSERT INTO users (id, name, phone, address, city, position, notes, cart, purchases, password, maps, waze, joinDate, code, debt_balance)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), '', 0)`,
+      `INSERT INTO users (id, name, phone, address, city, position, admin_notes, notes, cart, purchases, password, maps, waze, joinDate, code, debt_balance)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
       [
-        id, name, phone, address, city, position || 0, notes || '[]',
+        id, name, phone, address, city, position || 0, admin_notes || '[]', notes || '[]',
         JSON.stringify(cart || []), JSON.stringify(purchases || []),
-        password || phone, maps, waze
+        password || phone, maps, waze, code || '', debt_balance || 0
       ]
     );
 
     res.status(201).json({
-      success: true,
-      user: { 
-        id, name, phone, address, city, position: position || 0, 
-        notes: notes || '[]', cart, purchases, password, maps, waze, code: ''
-      }
-    });
+        success: true,
+        user: { 
+          id, name, phone, address, city, position: position || 0, 
+          admin_notes: admin_notes || '[]', notes: notes || '[]', 
+          cart, purchases, password, maps, waze, code: code || '', 
+          debt_balance: debt_balance || 0  
+        }
+      });
   } catch (err) {
     console.error('Error adding user:', err);
     res.status(500).json({ error: 'Error adding user', details: err.message });
@@ -211,16 +230,21 @@ app.put('/api/users/:id', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const { name, phone, address, city, position, notes, password, code, debt_balance } = req.body;
+        const { name, phone, address, city, position, notes, admin_notes, password, code, debt_balance } = req.body;
 
         // יצירת כתובות מפות בפורמט מקוצר
         const maps = `https://maps.google.com/?q=${encodeURIComponent(address + ' ' + city)}`;
         const waze = `https://waze.com/ul?q=${encodeURIComponent(address + ' ' + city)}&navigate=yes`;
 
-        // טיפול ב-notes
+        // טיפול ב-notes ו-admin_notes
         let processedNotes = notes;
         if (typeof notes === 'object') {
             processedNotes = JSON.stringify(notes);
+        }
+        
+        let processedAdminNotes = admin_notes;
+        if (typeof admin_notes === 'object') {
+            processedAdminNotes = JSON.stringify(admin_notes);
         }
 
         // עדכון המשתמש
@@ -232,6 +256,7 @@ app.put('/api/users/:id', async (req, res) => {
                  city = ?, 
                  position = ?, 
                  notes = ?, 
+                 admin_notes = ?,
                  password = ?, 
                  maps = ?, 
                  waze = ?, 
@@ -244,7 +269,8 @@ app.put('/api/users/:id', async (req, res) => {
                 address, 
                 city, 
                 position || 0, 
-                processedNotes, 
+                processedNotes,
+                processedAdminNotes, 
                 password || phone, 
                 maps, 
                 waze, 
@@ -344,25 +370,6 @@ app.get('/api/orders', async (req, res) => {
     try {
         // בדיקה אם הטבלה קיימת
         const [tables] = await connection.query('SHOW TABLES LIKE "orders"');
-        if (tables.length === 0) {
-            // אם הטבלה לא קיימת, ניצור אותה
-            await connection.query(`
-                CREATE TABLE IF NOT EXISTS orders (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    customerName VARCHAR(255) NOT NULL,
-                    items TEXT NOT NULL,
-                    totalAmount DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'חדשה',
-                    orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    phone VARCHAR(20),
-                    address VARCHAR(255),
-                    notes TEXT
-                )
-            `);
-            // נחזיר מערך ריק אם הטבלה נוצרה עכשיו
-            return res.json([]);
-        }
-
         const [orders] = await connection.query('SELECT * FROM orders');
         const formattedOrders = orders.map(order => ({
             ...order,
@@ -379,18 +386,44 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
-// הוספת הזמנה חדשה
+// נקודת קצה ליצירת הזמנה חדשה
 app.post('/api/orders', async (req, res) => {
     try {
-        const { customerName, items, totalAmount, status = 'חדשה', phone, address, notes } = req.body;
-        const [result] = await connection.query(
-            'INSERT INTO orders (customerName, items, totalAmount, status, phone, address, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [customerName, JSON.stringify(items), totalAmount, status, phone || null, address || null, notes || null]
+        const { userId, items } = req.body;
+
+        // שמירת ההזמנה בטבלת orders - נותנים ל-ID להיווצר אוטומטית
+        const [orderResult] = await connection.execute(
+            'INSERT INTO orders (customer_id) VALUES (?)',
+            [userId]
         );
-        res.status(201).json({ id: result.insertId });
+
+        const orderId = orderResult.insertId;
+
+        // שמירת פריטי ההזמנה בטבלת order_items - רק מזהה המוצר וכמות
+        const orderItems = JSON.parse(items);
+        const itemsValues = orderItems.map(item => [
+            orderId,
+            item.productId,
+            item.quantity
+        ]);
+
+        await connection.query(
+            'INSERT INTO order_items (order_id, product_id, quantity) VALUES ?',
+            [itemsValues]
+        );
+
+        res.json({ 
+            success: true,
+            orderId: orderId,
+            message: 'ההזמנה נוצרה בהצלחה'
+        });
+
     } catch (error) {
-        console.error('Error adding order:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error creating order:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'שגיאה ביצירת ההזמנה'
+        });
     }
 });
 
@@ -487,8 +520,22 @@ app.get('/api/users/:id', async (req, res) => {
         if (rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
+
+        // טיפול בהערות רגילות
+        let notes = [];
+        try {
+            notes = JSON.parse(rows[0].notes || '[]');
+        } catch (e) {
+            notes = rows[0].notes ? [rows[0].notes] : [];
+        }
+
+        // החזרת המשתמש עם הערות מעובדות
+        const user = {
+            ...rows[0],
+            notes: JSON.stringify(notes)
+        };
         
-        res.json(rows[0]);
+        res.json(user);
     } catch (error) {
         console.error('Error fetching user:', error);
         res.status(500).json({ error: 'Error fetching user' });
@@ -530,6 +577,16 @@ app.post('/api/users/login', async (req, res) => {
         }
         
         const user = users[0];
+
+        // טיפול בהערות רגילות
+        let notes = [];
+        try {
+            notes = JSON.parse(user.notes || '[]');
+        } catch (e) {
+            notes = user.notes ? [user.notes] : [];
+        }
+
+        // החזרת המשתמש ללא הערות מנהל
         res.json({ 
             success: true, 
             user: {
@@ -539,7 +596,14 @@ app.post('/api/users/login', async (req, res) => {
                 city: user.city,
                 address: user.address,
                 position: user.position,
-                notes: user.notes
+                notes: JSON.stringify(notes),
+                cart: user.cart || '[]',
+                purchases: user.purchases || '[]',
+                password: user.password,
+                maps: user.maps || '',
+                waze: user.waze || '',
+                code: user.code || '',
+                debt_balance: user.debt_balance || 0
             }
         });
     } catch (error) {
@@ -584,6 +648,22 @@ app.post('/api/admins', async (req, res) => {
     } catch (err) {
         console.error('שגיאה בעדכון מנהלים:', err);
         res.status(500).json({ success: false, message: 'שגיאה בעדכון מנהלים' });
+    }
+});
+
+// עדכון אם משתמש הוא אדמין
+app.get('/api/admins/checkAdmin/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const query = 'SELECT * FROM admins WHERE user_id = ?';
+        const [results] = await connection.execute(query, [userId]);
+        
+        res.json({
+            exists: results.length > 0
+        });
+    } catch (error) {
+        console.error('Error checking admin status:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול הזמנות</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/orders.css">
+</head>
+<body>
+    <div class="orders-container">
+        <!-- אזור סינון -->
+        <div class="filters-container">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="cityFilter">עיר</label>
+                    <select id="cityFilter" onchange="filterOrders({city: this.value})">
+                        <option value="">כל הערים</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="statusFilter">סטטוס</label>
+                    <select id="statusFilter" onchange="filterOrders({status: this.value})">
+                        <option value="">הכל</option>
+                        <option value="pending">ממתין למשלוח</option>
+                        <option value="completed">נשלח</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dateFromFilter">מתאריך</label>
+                    <input type="date" id="dateFromFilter" onchange="filterOrders({dateFrom: this.value})">
+                </div>
+                <div class="filter-group">
+                    <label for="dateToFilter">עד תאריך</label>
+                    <input type="date" id="dateToFilter" onchange="filterOrders({dateTo: this.value})">
+                </div>
+            </div>
+        </div>
+
+        <!-- מכולת ההזמנות -->
+        <div id="ordersContainer"></div>
+    </div>
+
+    <script src="/js/orders.js"></script>
+</body>
+</html> 
