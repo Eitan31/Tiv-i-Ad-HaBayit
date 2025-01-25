@@ -266,4 +266,51 @@
 .dropdown-item:hover {
     background-color: var(--color-background-light);
     color: var(--color-primary);
+}
+
+.user-buttons, .guest-buttons {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.user-buttons button, .guest-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+    font-weight: 500;
+}
+
+.login-btn, .register-btn {
+    background: var(--color-primary);
+}
+
+.profile-btn {
+    background: var(--color-primary);
+}
+
+.orders-btn {
+    background: #8B5CF6;
+}
+
+.admin-btn {
+    background: #000000;
+}
+
+.logout-btn {
+    background: var(--color-danger);
+}
+
+.user-buttons {
+    display: none;
+}
+
+.guest-buttons {
+    display: flex;
+}
+
+.admin-btn {
+    display: none;
 } 

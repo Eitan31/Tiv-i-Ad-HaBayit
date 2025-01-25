@@ -101,24 +101,84 @@ const UsersHelpers = {
     }
 };
 
+// פונקציה לבדיקה אם המשתמש הנוכחי הוא מנהל
+async function isCurrentUserAdmin() {
+    const currentUserId = localStorage.getItem('userId');
+    if (!currentUserId) return false;
+
+    try {
+        // בדיקה מול השרת אם המשתמש הוא מנהל
+        const response = await fetch(`/api/users/${currentUserId}`);
+        if (!response.ok) return false;
+        
+        const user = await response.json();
+        return user.is_admin === 1 || user.is_admin === true;
+    } catch (error) {
+        console.error('שגיאה בבדיקת הרשאות מנהל:', error);
+        return false;
+    }
+}
+
 // פונקציות עזר גלובליות
 function renderUserNotes(user) {
-    if (!user.notes || !Array.isArray(user.notes) || user.notes.length === 0) {
-        return '';
+    let notesHtml = '';
+
+    // המרת notes למערך אם הוא מגיע כמחרוזת JSON
+    let userNotes = [];
+    try {
+        userNotes = typeof user.notes === 'string' ? JSON.parse(user.notes) : (user.notes || []);
+    } catch (e) {
+        userNotes = [];
     }
 
-    const notes = user.notes.filter(note => note.trim() !== '');
-    if (notes.length === 0) {
-        return '';
+    // המרת admin_notes למערך אם הוא מגיע כמחרוזת JSON
+    let adminNotes = [];
+    try {
+        adminNotes = typeof user.admin_notes === 'string' ? JSON.parse(user.admin_notes) : (user.admin_notes || []);
+    } catch (e) {
+        adminNotes = [];
     }
 
-    return `
-        <div class="user-notes">
-            <ul>
-                ${notes.map(note => `<li>${note}</li>`).join('')}
-            </ul>
-        </div>
-    `;
+    // רינדור הערות רגילות
+    if (userNotes.length > 0) {
+        notesHtml += `
+            <div class="user-notes">
+                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                    ${userNotes.map(note => `
+                        <li style="padding: 4px 8px; background-color: #f3f4f6; margin-bottom: 4px; border-radius: 4px;">
+                            ${note}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    // רינדור הערות מנהל רק אם יש הערות ויש תוכן בהערות
+    if (adminNotes.length > 0 && adminNotes.some(note => note.trim() !== '')) {
+        notesHtml += `
+            <div class="admin-notes" style="margin-top: ${userNotes.length > 0 ? '8px' : '0'};">
+                ${adminNotes
+                    .filter(note => note.trim() !== '')
+                    .map(note => `
+                        <div class="admin-note" style="
+                            font-size: 0.75em;
+                            background-color: #fef9c3;
+                            padding: 4px 6px;
+                            border-radius: 4px;
+                            border: 1px solid #f59e0b;
+                            margin-top: 4px;
+                            margin-bottom: 2px;
+                            line-height: 1.2;
+                        ">
+                            ${note}
+                        </div>
+                    `).join('')}
+            </div>
+        `;
+    }
+
+    return notesHtml;
 }
 
 function renderUserActions(user) {
@@ -136,6 +196,19 @@ function renderUserActions(user) {
 
 // פונקציה לרינדור משתמש
 function renderUser(user) {
+    // המרת admin_notes למערך אם הוא מגיע כמחרוזת JSON
+    let adminNotes = [];
+    try {
+        adminNotes = typeof user.admin_notes === 'string' ? JSON.parse(user.admin_notes) : (user.admin_notes || []);
+        if (!Array.isArray(adminNotes)) adminNotes = [];
+    } catch (e) {
+        console.warn('שגיאה בפענוח הערות מנהל:', e);
+        adminNotes = [];
+    }
+
+    const hasAdminNotes = adminNotes.length > 0;
+    const isAdmin = isCurrentUserAdmin();
+
     const userHeader = `
         <div class="user-header">
             <h3>${user.name}</h3>
@@ -145,19 +218,6 @@ function renderUser(user) {
                 <div class="admin-badge" style="position: absolute; top: -15px; left: 5px; background-color: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; display: flex; align-items: center; gap: 4px; pointer-events: none; user-select: none;">
                     <i class="fas fa-crown"></i> מנהל
                 </div>
-            ` : ''}
-            ${isAdminSelectionMode && !ADMIN_IDS.includes(user.id) ? `
-                <div class="admin-checkbox-container" style="position: absolute; top: -15px; right: 5px; transform: scale(0.98);">
-                    <input type="checkbox" 
-                           style="width: 20px; height: 20px; margin: 0 5px; cursor: pointer;"
-                           onchange="toggleUserAdmin('${user.id}', this.checked)">
-                </div>
-            ` : ''}
-            ${isAdminsView && ADMIN_IDS.includes(user.id) ? `
-                <button onclick="toggleUserAdmin('${user.id}', false)" 
-                        style="position: absolute; top: -15px; right: 5px; background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; transform: scale(0.98);">
-                    <i class="fas fa-user-minus"></i> הסר מנהל
-                </button>
             ` : ''}
         </div>
     `;
@@ -191,7 +251,7 @@ function renderUser(user) {
     `;
 
     return `
-        <div class="user-card" style="position: relative; border: 2px solid ${ADMIN_IDS.includes(user.id) ? '#93c5fd' : UsersHelpers.isNewUser(user) ? '#fcd34d' : 'transparent'}; border-radius: 8px; padding: 16px;">
+        <div class="user-card" style="position: relative; border: 2px solid ${ADMIN_IDS.includes(user.id) ? '#93c5fd' : hasAdminNotes && isAdmin ? '#fcd34d' : UsersHelpers.isNewUser(user) ? '#fcd34d' : 'transparent'}; border-radius: 8px; padding: 16px;">
             <div class="card-content" style="position: relative; z-index: 1;">
                 ${userHeader}
                 ${userDetails}
@@ -362,7 +422,6 @@ async function loadUserStats() {
 
 // פונקציית מעבר בין תצוגות
 async function switchView(view) {
-    console.log('מעבר לתצוגה:', view);
     
     // הסרת סטייל פעיל מכל הכפתורים
     document.querySelectorAll('.main-nav-button, .side-nav-button').forEach(btn => {
@@ -629,7 +688,16 @@ async function showUserForm(user = null) {
         try {
             user.notes = JSON.parse(user.notes);
         } catch (e) {
-            user.notes = user.notes ? [user.notes] : [];
+            user.notes = [];
+        }
+    }
+
+    // המרת admin_notes למערך אם הוא מגיע כמחרוזת JSON
+    if (user && typeof user.admin_notes === 'string') {
+        try {
+            user.admin_notes = JSON.parse(user.admin_notes);
+        } catch (e) {
+            user.admin_notes = [];
         }
     }
     
@@ -654,6 +722,67 @@ async function showUserForm(user = null) {
         z-index: 1000;
     `;
     
+    // הוספת שדה הערות מנהל
+    const adminNotesHtml = `
+        <div class="form-group">
+            <label>הערות מנהל</label>
+            <div id="adminNotesContainer">
+                ${(user?.admin_notes || []).length > 0 ? 
+                    (user?.admin_notes || []).map((admin_note, index) => `
+                        <div class="note-row" style="
+                            margin-bottom: 8px;
+                            display: flex;
+                            gap: 8px;
+                            background-color: #fef9c3;
+                            padding: 8px;
+                            border-radius: 4px;
+                            border: 1px solid #f59e0b;
+                        ">
+                            <input type="text" name="admin_notes[]" value="${admin_note}" style="flex: 1;">
+                            <button type="button" onclick="removeAdminNote(this)" class="remove-note" style="
+                                background-color: #ef4444;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                padding: 4px 8px;
+                                cursor: pointer;
+                            ">-</button>
+                        </div>
+                    `).join('') : 
+                    `<div class="note-row" style="
+                        margin-bottom: 8px;
+                        display: flex;
+                        gap: 8px;
+                        background-color: #fef9c3;
+                        padding: 8px;
+                        border-radius: 4px;
+                        border: 1px solid #f59e0b;
+                    ">
+                        <input type="text" name="admin_notes[]" style="flex: 1;">
+                        <button type="button" onclick="removeAdminNote(this)" class="remove-note" style="
+                            background-color: #ef4444;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            padding: 4px 8px;
+                            cursor: pointer;
+                        ">-</button>
+                    </div>`
+                }
+            </div>
+            <button type="button" onclick="addAdminNote()" class="add-note" style="
+                background-color: #22c55e;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px;
+                width: 100%;
+                margin-top: 8px;
+                cursor: pointer;
+            ">+ הוסף הערת מנהל</button>
+        </div>
+    `;
+
     modal.innerHTML = `
         <div class="edit-user-modal-content" style="
             background: white;
@@ -720,18 +849,98 @@ async function showUserForm(user = null) {
                     <div id="notesContainer">
                         ${(user?.notes || []).length > 0 ? 
                             (user?.notes || []).map((note, index) => `
-                                <div class="note-row">
-                                    <input type="text" name="notes[]" value="${note}">
-                                    <button type="button" onclick="removeNote(this)" class="remove-note">-</button>
+                                <div class="note-row" style="margin-bottom: 8px; display: flex; gap: 8px;">
+                                    <input type="text" name="notes[]" value="${note}" style="flex: 1;">
+                                    <button type="button" onclick="removeNote(this)" class="remove-note" style="
+                                        background-color: #ef4444;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 4px;
+                                        padding: 4px 8px;
+                                        cursor: pointer;
+                                    ">-</button>
                                 </div>
                             `).join('') : 
-                            `<div class="note-row">
-                                <input type="text" name="notes[]">
-                                <button type="button" onclick="removeNote(this)" class="remove-note">-</button>
+                            `<div class="note-row" style="margin-bottom: 8px; display: flex; gap: 8px;">
+                                <input type="text" name="notes[]" style="flex: 1;">
+                                <button type="button" onclick="removeNote(this)" class="remove-note" style="
+                                    background-color: #ef4444;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 4px;
+                                    padding: 4px 8px;
+                                    cursor: pointer;
+                                ">-</button>
                             </div>`
                         }
                     </div>
-                    <button type="button" onclick="addNote()" class="add-note">+</button>
+                    <button type="button" onclick="addNote()" class="add-note" style="
+                        background-color: #22c55e;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 8px;
+                        width: 100%;
+                        margin-top: 8px;
+                        cursor: pointer;
+                    ">+ הוסף הערה</button>
+                </div>
+                <div class="form-group">
+                    <label>הערות מנהל</label>
+                    <div id="adminNotesContainer">
+                        ${(user?.admin_notes || []).length > 0 ? 
+                            (user?.admin_notes || []).map((admin_note, index) => `
+                                <div class="note-row" style="
+                                    margin-bottom: 8px;
+                                    display: flex;
+                                    gap: 8px;
+                                    background-color: #fef9c3;
+                                    padding: 8px;
+                                    border-radius: 4px;
+                                    border: 1px solid #f59e0b;
+                                ">
+                                    <input type="text" name="admin_notes[]" value="${admin_note}" style="flex: 1;">
+                                    <button type="button" onclick="removeAdminNote(this)" class="remove-note" style="
+                                        background-color: #ef4444;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 4px;
+                                        padding: 4px 8px;
+                                        cursor: pointer;
+                                    ">-</button>
+                                </div>
+                            `).join('') : 
+                            `<div class="note-row" style="
+                                margin-bottom: 8px;
+                                display: flex;
+                                gap: 8px;
+                                background-color: #fef9c3;
+                                padding: 8px;
+                                border-radius: 4px;
+                                border: 1px solid #f59e0b;
+                            ">
+                                <input type="text" name="admin_notes[]" style="flex: 1;">
+                                <button type="button" onclick="removeAdminNote(this)" class="remove-note" style="
+                                    background-color: #ef4444;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 4px;
+                                    padding: 4px 8px;
+                                    cursor: pointer;
+                                ">-</button>
+                            </div>`
+                        }
+                    </div>
+                    <button type="button" onclick="addAdminNote()" class="add-note" style="
+                        background-color: #22c55e;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 8px;
+                        width: 100%;
+                        margin-top: 8px;
+                        cursor: pointer;
+                    ">+ הוסף הערת מנהל</button>
                 </div>
                 <div class="form-group">
                     <label>קישור ל-Google Maps</label>
@@ -777,6 +986,11 @@ async function showUserForm(user = null) {
             .map(input => input.value)
             .filter(note => note.trim() !== '');
 
+        // איסוף הערות מנהל
+        const adminNotes = Array.from(form.querySelectorAll('input[name="admin_notes[]"]'))
+            .map(input => input.value)
+            .filter(note => note.trim() !== '');
+        
         // ניקוי מספר הטלפון מתווים מיוחדים
         const phone = formData.get('phone').replace(/\D/g, '');
         
@@ -791,51 +1005,38 @@ async function showUserForm(user = null) {
             position: position,
             password: formData.get('password') || phone,
             code: formData.get('code') || '',
-            notes: notes.length > 0 ? notes : [],
+            notes: notes,  // שינוי: שליחת המערך ישירות
+            admin_notes: adminNotes,  // שינוי: שליחת המערך ישירות
             debt_balance: parseFloat(formData.get('debt_balance')) || 0,
             maps: formData.get('maps') || '',
-            waze: formData.get('waze') || '',
-            cart: user?.cart || [],
-            purchases: user?.purchases || []
+            waze: formData.get('waze') || ''
         };
 
+        console.log('Saving user data:', userData); // לוג לבדיקה
+
         try {
-            // בדיקה אם יש מיקום חדש
-            if (position > 0) {
-                // קבלת כל המשתמשים מאותה עיר
-                const usersResponse = await fetch('/api/users');
-                const allUsers = await usersResponse.json();
-                const cityUsers = allUsers
-                    .filter(u => u.city === userData.city && (!isEdit || u.id !== user?.id))
-                    .sort((a, b) => (a.position || 0) - (b.position || 0));
-
-                // עדכון המיקומים של המשתמשים האחרים
-                for (const userToUpdate of cityUsers) {
-                    if ((userToUpdate.position || 0) >= position) {
-                        const newUserData = {
-                            ...userToUpdate,
-                            position: (userToUpdate.position || 0) + 1
-                        };
-
-                        await fetch(`/api/users/${userToUpdate.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(newUserData)
-                        });
-                    }
-                }
+            let response;
+            if (isEdit) {
+                response = await fetch(`/api/users/${user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+            } else {
+                response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
             }
-
-            // שמירת המשתמש החדש/מעודכן
-            const response = await fetch(isEdit ? `/api/users/${user.id}` : '/api/users', {
-                method: isEdit ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData)
-            });
 
             if (!response.ok) {
-                throw new Error('Error saving user');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error saving user');
             }
+
+            const savedUser = await response.json();
+            console.log('Saved user:', savedUser); // לוג לבדיקה
 
             // סגירת המודל והצגת הודעת הצלחה
             modal.remove();
@@ -846,7 +1047,7 @@ async function showUserForm(user = null) {
             await loadUsers();
 
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error saving user:', error);
             alert('אירעה שגיאה בשמירת המשתמש');
         }
     });
@@ -855,6 +1056,41 @@ async function showUserForm(user = null) {
     const citySelect = modal.querySelector('#citySelect');
     if (citySelect) {
         toggleOtherCityInput(citySelect);
+    }
+}
+
+// פונקציות חדשות לטיפול בהערות מנהל
+window.addAdminNote = function() {
+    const container = document.getElementById('adminNotesContainer');
+    const noteRow = document.createElement('div');
+    noteRow.className = 'note-row';
+    noteRow.style.cssText = `
+        margin-bottom: 8px;
+        display: flex;
+        gap: 8px;
+        background-color: #fef9c3;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #f59e0b;
+    `;
+    noteRow.innerHTML = `
+        <input type="text" name="admin_notes[]" style="flex: 1;">
+        <button type="button" onclick="removeAdminNote(this)" class="remove-note" style="
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+        ">-</button>
+    `;
+    container.appendChild(noteRow);
+}
+
+window.removeAdminNote = function(button) {
+    const noteRow = button.closest('.note-row');
+    if (noteRow) {
+        noteRow.remove();
     }
 }
 
@@ -981,9 +1217,17 @@ window.addNote = function() {
     const container = document.getElementById('notesContainer');
     const noteRow = document.createElement('div');
     noteRow.className = 'note-row';
+    noteRow.style.cssText = 'margin-bottom: 8px; display: flex; gap: 8px;';
     noteRow.innerHTML = `
-        <input type="text" name="notes[]" value="">
-        <button type="button" onclick="removeNote(this)" class="remove-note">-</button>
+        <input type="text" name="notes[]" style="flex: 1;">
+        <button type="button" onclick="removeNote(this)" class="remove-note" style="
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+        ">-</button>
     `;
     container.appendChild(noteRow);
 }
@@ -998,17 +1242,31 @@ window.removeNote = function(button) {
 // פונקציה לשמירת משתמש חדש
 async function saveUser(userData) {
     try {
-        // המרת הערות למחרוזת JSON אם הן מגיעות כמערך
-        if (Array.isArray(userData.notes)) {
-            userData.notes = JSON.stringify(userData.notes);
-        }
+        // איסוף הערות מהטופס
+        const form = document.querySelector('.user-form');
+        if (!form) throw new Error('הטופס לא נמצא');
+
+        const notes = Array.from(form.querySelectorAll('input[name="notes[]"]'))
+            .map(input => input.value)
+            .filter(note => note.trim() !== '');
+            
+        const adminNotes = Array.from(form.querySelectorAll('input[name="admin_notes[]"]'))
+            .map(input => input.value)
+            .filter(note => note.trim() !== '');
+
+        // הוספת ההערות לנתוני המשתמש
+        const updatedUserData = {
+            ...userData,
+            notes: JSON.stringify(notes || []),
+            admin_notes: JSON.stringify(adminNotes || [])
+        };
 
         const response = await fetch('/api/users', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(userData)
+            body: JSON.stringify(updatedUserData)
         });
 
         if (!response.ok) {
@@ -1016,10 +1274,7 @@ async function saveUser(userData) {
             throw new Error(errorData.message || 'שגיאה בשמירת המשתמש');
         }
 
-        // טעינה מחדש של המשתמשים
-        const result = await response.json();
-        await loadUsers();
-        return result;
+        return await response.json();
     } catch (error) {
         console.error('שגיאה בשמירת המשתמש:', error);
         throw error;
@@ -1029,9 +1284,12 @@ async function saveUser(userData) {
 // פונקציה לעדכון משתמש קיים
 async function updateUser(userData) {
     try {
-        // המרת הערות למחרוזת JSON אם הן מגיעות כמערך
+        // טיפול בהערות לפני העדכון
         if (Array.isArray(userData.notes)) {
-            userData.notes = JSON.stringify(userData.notes);
+            userData.notes = JSON.stringify(userData.notes.filter(note => note.trim() !== ''));
+        }
+        if (Array.isArray(userData.admin_notes)) {
+            userData.admin_notes = JSON.stringify(userData.admin_notes.filter(note => note.trim() !== ''));
         }
 
         const response = await fetch(`/api/users/${userData.id}`, {
@@ -1125,8 +1383,8 @@ window.removeAdmin = function(userId, userName) {
     }
 };
 
-// קבוע למנהלי המערכת
-const ADMIN_IDS = []; // רשימה ריקה של מנהלים
+// קבוע למנהלי המערכת - נעביר אותו לתחילת הקובץ
+const ADMIN_IDS = ['1', '2', '3']; // רשימת מזהים של מנהלים
 
 // מצב בחירת מנהלים
 let isAdminSelectionMode = false;
@@ -1417,7 +1675,6 @@ async function showProductForm(product = null) {
                 throw new Error('יש להזין שם מוצר');
             }
 
-            console.log('שולח נתונים:', productData); // לוג לבדיקה
 
             const response = await fetch(isEdit ? `/api/products/${product.id}` : '/api/products', {
                 method: isEdit ? 'PUT' : 'POST',
@@ -1433,7 +1690,6 @@ async function showProductForm(product = null) {
             }
 
             const savedProduct = await response.json();
-            console.log('המוצר נשמר:', savedProduct); // לוג לבדיקה
 
             modal.remove();
             showSuccessMessage(isEdit ? 'המוצר עודכן בהצלחה' : 'המוצר נוסף בהצלחה');
