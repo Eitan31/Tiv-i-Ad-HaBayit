@@ -159,7 +159,11 @@ function createLoginForm() {
                     userData.isAdmin = false;
                 }
 
+                // שמירת המשתמש בכל המקומות הנדרשים
                 localStorage.setItem('user', JSON.stringify(userData));
+                localStorage.setItem('currentUser', JSON.stringify(userData));
+                localStorage.setItem('loggedInUser', JSON.stringify(userData));
+                
                 isLoggedIn = true;
                 showUserMenu();
                 e.target.closest('.modal-overlay').remove();
@@ -597,6 +601,8 @@ function handleProfile() {
                 };
                 
                 localStorage.setItem('user', JSON.stringify(newUserData));
+                localStorage.setItem('currentUser', JSON.stringify(newUserData));
+                localStorage.setItem('loggedInUser', JSON.stringify(newUserData));
                 modal.remove();
                 alert('הפרטים עודכנו בהצלחה');
             } catch (error) {
@@ -660,6 +666,8 @@ function handleOrders() {
 
 function handleLogout() {
     localStorage.removeItem('user');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('loggedInUser');
     isLoggedIn = false;
     isAdmin = false;
     showGuestMenu();

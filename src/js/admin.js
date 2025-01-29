@@ -910,37 +910,13 @@ async function showUserForm(user = null) {
                                     ">-</button>
                                 </div>
                             `).join('') : 
-                            `<div class="note-row" style="
-                                margin-bottom: 8px;
-                                display: flex;
-                                gap: 8px;
-                                background-color: #fef9c3;
-                                padding: 8px;
-                                border-radius: 4px;
-                                border: 1px solid #f59e0b;
-                            ">
-                                <input type="text" name="admin_notes[]" style="flex: 1;">
-                                <button type="button" onclick="removeAdminNote(this)" class="remove-note" style="
-                                    background-color: #ef4444;
-                                    color: white;
-                                    border: none;
-                                    border-radius: 4px;
-                                    padding: 4px 8px;
-                                    cursor: pointer;
-                                ">-</button>
+                            `<div class="note-row">
+                                <input type="text" name="admin_notes[]">
+                                <button type="button" onclick="removeAdminNote(this)" class="remove-note">-</button>
                             </div>`
                         }
                     </div>
-                    <button type="button" onclick="addAdminNote()" class="add-note" style="
-                        background-color: #22c55e;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        padding: 8px;
-                        width: 100%;
-                        margin-top: 8px;
-                        cursor: pointer;
-                    ">+ הוסף הערת מנהל</button>
+                    <button type="button" onclick="addAdminNote()" class="add-note" style="width: 100%;">+ הוסף הערת מנהל</button>
                 </div>
                 <div class="form-group">
                     <label>קישור ל-Google Maps</label>

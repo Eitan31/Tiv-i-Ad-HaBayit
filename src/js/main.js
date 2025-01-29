@@ -2,155 +2,65 @@ import { Product, shopItems } from "./product.js";
 
 // פונקציה להוספת כפתורי ניווט - משותפת לכל הדפים
 export function addNavigationButtons() {
-    const navbar = document.querySelector('.navbar');
-    if (!navbar) return;
-
-    // הסרת כפתורי ניווט קיימים אם יש
-    const existingNavButtons = navbar.querySelector('.nav-buttons');
-    if (existingNavButtons) {
-        existingNavButtons.remove();
-    }
-
-    // הסרת כפתורי התחברות ישנים אם קיימים
-    const existingAuthButtons = navbar.querySelector('.auth-buttons');
-    if (existingAuthButtons) {
-        existingAuthButtons.remove();
-    }
-
-    // בדיקה אם המשתמש מחובר
-    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+    const navButtons = document.querySelector('.nav-buttons');
+    if (!navButtons) return; // אם אין כפתורי ניווט, נצא מהפונקציה
     
-    const navButtons = document.createElement('div');
-    navButtons.className = 'nav-buttons';
-
-    if (!loggedInUser) {
-        // כפתורי התחברות והרשמה
-        const loginBtn = document.createElement('button');
-        loginBtn.className = 'auth-btn login-btn';
-        loginBtn.textContent = 'התחברות';
-        loginBtn.addEventListener('click', () => window.location.href = 'login.html');
-
-        const registerBtn = document.createElement('button');
-        registerBtn.className = 'auth-btn register-btn';
-        registerBtn.textContent = 'הרשמה';
-        registerBtn.addEventListener('click', () => window.location.href = 'register.html');
-
-        navButtons.appendChild(loginBtn);
-        navButtons.appendChild(registerBtn);
-    } else {
-        // תפריט משתמש מחובר
-        const userMenuBtn = document.createElement('div');
-        userMenuBtn.className = 'user-menu-dropdown';
-        
-        const userBtn = document.createElement('button');
-        userBtn.className = 'user-menu-btn';
-        userBtn.textContent = `שלום ${loggedInUser.name}`;
-        
-        const dropdownContent = document.createElement('div');
-        dropdownContent.className = 'dropdown-content';
-
-        // הוספת פרטי המשתמש
-        const userDetails = document.createElement('div');
-        userDetails.className = 'user-details';
-        userDetails.innerHTML = `
-            <div class="user-info">
-                <p><strong>שם:</strong> ${loggedInUser.name}</p>
-                <p><strong>טלפון:</strong> ${loggedInUser.phone}</p>
-                <p><strong>כתובת:</strong> ${loggedInUser.address}</p>
-            </div>
-            <button class="edit-details-btn">ערוך פרטים</button>
+    const loggedInUser = JSON.parse(localStorage.getItem('user')) || 
+                        JSON.parse(localStorage.getItem('currentUser')) || 
+                        JSON.parse(localStorage.getItem('loggedInUser'));
+    
+    // הסרת כפתורים קיימים
+    navButtons.innerHTML = '';
+    
+    if (loggedInUser) {
+        // כפתורים למשתמש מחובר
+        navButtons.innerHTML = `
+            <button class="profile-btn">פרופיל</button>
+            <button class="orders-btn">הזמנות</button>
+            <button class="logout-btn">התנתק</button>
         `;
-
-        // הוספת טופס עריכה (מוסתר כברירת מחדל)
-        const editForm = document.createElement('form');
-        editForm.className = 'edit-user-form hidden';
-        editForm.innerHTML = `
-            <div class="form-group">
-                <label for="name">שם:</label>
-                <input type="text" id="name" name="name" value="${loggedInUser.name || ''}" required>
-            </div>
-            <div class="form-group">
-                <label for="phone">טלפון:</label>
-                <input type="tel" id="phone" name="phone" value="${loggedInUser.phone || ''}" required>
-            </div>
-            <div class="form-group">
-                <label for="address">כתובת:</label>
-                <input type="text" id="address" name="address" value="${loggedInUser.address || ''}" required>
-            </div>
-            <div class="form-group">
-                <label for="password">סיסמה חדשה:</label>
-                <input type="password" id="password" name="password">
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="save-btn">שמור</button>
-                <button type="button" class="cancel-btn">ביטול</button>
-            </div>
-        `;
-
-        // הוספת אירועים לטופס
-        editForm.addEventListener('submit', handleUserEditFormSubmit);
-        userDetails.querySelector('.edit-details-btn').addEventListener('click', () => {
-            userDetails.classList.add('hidden');
-            editForm.classList.remove('hidden');
-        });
-        editForm.querySelector('.cancel-btn').addEventListener('click', () => {
-            editForm.classList.add('hidden');
-            userDetails.classList.remove('hidden');
-        });
-
-        dropdownContent.appendChild(userDetails);
-        dropdownContent.appendChild(editForm);
         
-        // כפתור היסטוריית הזמנות
-        const ordersBtn = document.createElement('button');
-        ordersBtn.className = 'dropdown-item';
-        ordersBtn.textContent = 'היסטוריית הזמנות';
-        ordersBtn.addEventListener('click', () => window.location.href = 'orders.html');
+        // הוספת מאזיני אירועים לכפתורים
+        const profileBtn = navButtons.querySelector('.profile-btn');
+        const ordersBtn = navButtons.querySelector('.orders-btn');
+        const logoutBtn = navButtons.querySelector('.logout-btn');
         
-        // הוספת כפתור ניהול רק למנהלים
+        if (profileBtn) profileBtn.addEventListener('click', handleProfile);
+        if (ordersBtn) ordersBtn.addEventListener('click', handleOrders);
+        if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+        
+        // אם המשתמש הוא מנהל, נוסיף כפתור אדמין
         if (loggedInUser.isAdmin) {
-            const manageBtn = document.createElement('button');
-            manageBtn.className = 'dropdown-item';
-            manageBtn.textContent = 'ניהול';
-            manageBtn.addEventListener('click', () => window.location.href = 'admin.html');
-            dropdownContent.appendChild(manageBtn);
+            const adminBtn = document.createElement('button');
+            adminBtn.className = 'admin-btn';
+            adminBtn.textContent = 'ניהול';
+            adminBtn.style.background = '#000000';
+            adminBtn.addEventListener('click', () => window.location.href = 'admin.html');
+            navButtons.appendChild(adminBtn);
         }
+    } else {
+        // כפתורים לאורח
+        navButtons.innerHTML = `
+            <button class="login-btn">התחבר</button>
+            <button class="register-btn">הרשם</button>
+        `;
         
-        // כפתור התנתקות
-        const logoutBtn = document.createElement('button');
-        logoutBtn.className = 'dropdown-item';
-        logoutBtn.textContent = 'התנתק';
-        logoutBtn.addEventListener('click', handleLogout);
+        // הוספת מאזיני אירועים לכפתורים
+        const loginBtn = navButtons.querySelector('.login-btn');
+        const registerBtn = navButtons.querySelector('.register-btn');
         
-        dropdownContent.appendChild(ordersBtn);
-        dropdownContent.appendChild(logoutBtn);
-        
-        userMenuBtn.appendChild(userBtn);
-        userMenuBtn.appendChild(dropdownContent);
-        navButtons.appendChild(userMenuBtn);
-    }
-
-    // הוספת הכפתורים לנאבבר
-    const logoAndAuth = navbar.querySelector('.logo-and-auth');
-    if (logoAndAuth) {
-        logoAndAuth.insertAdjacentElement('afterend', navButtons);
+        if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+        if (registerBtn) registerBtn.addEventListener('click', handleRegister);
     }
 }
 
 // פונקציית התנתקות גלובלית
 window.handleLogout = () => {
-    localStorage.removeItem('loggedInUser');
+    localStorage.removeItem('user');
     localStorage.removeItem('currentUser');
-    // הסתרת כפתורי הניווט
-    const navButtons = document.querySelector('.nav-buttons');
-    if (navButtons) {
-        navButtons.remove();
-    }
-    // הצגת כפתורי ההתחברות
-    const authButtons = document.querySelector('.auth-buttons');
-    if (authButtons) {
-        authButtons.style.display = 'flex';
-    }
+    localStorage.removeItem('loggedInUser');
+    // הוספת כפתורי ניווט מחדש
+    addNavigationButtons();
     window.location.href = 'index.html';
 };
 
@@ -164,46 +74,163 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'products_cache';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 דקות
 
-  // פונקציות עדכון הסל
-  window.increment = (id) => {
-    id = id.toString();
-    let selectedItem = basketMap.get(id);
-
-    if (!selectedItem) {
-      selectedItem = { id, item: 1 };
-      basketMap.set(id, selectedItem);
-      basket.push(selectedItem);
-    } else {
-      selectedItem.item += 1;
-    }
-
-    updateBasket();
-  };
-
-  window.decrement = (id) => {
-    id = id.toString();
-    let selectedItem = basketMap.get(id);
-
-    if (!selectedItem || selectedItem.item === 0) {
-      basketMap.delete(id);
-      basket = basket.filter(x => x.id !== id);
-      updateBasket();
-      return;
-    }
-
-    selectedItem.item -= 1;
-    if (selectedItem.item === 0) {
-      basketMap.delete(id);
-      basket = basket.filter(x => x.id !== id);
-    }
-
-    updateBasket();
-  };
-
-  function updateBasket() {
+  // עדכון basket ו-localStorage
+  let updateCart = async () => {
+    console.log('מתחיל updateCart עם העגלה:', basket);
     localStorage.setItem("data", JSON.stringify(basket));
+    
+    // עדכון התצוגה מיד
+    calculation();
+    
+    // בדיקת משתמש מחובר (בודק גם user וגם currentUser וגם loggedInUser)
+    const userData = localStorage.getItem("user");
+    const currentUserData = localStorage.getItem("currentUser");
+    const loggedInUserData = localStorage.getItem("loggedInUser");
+    
+    console.log('נתוני משתמש מ-localStorage:', { user: userData, currentUser: currentUserData, loggedInUser: loggedInUserData });
+    
+    let loggedInUser;
+    try {
+        if (userData) {
+            loggedInUser = JSON.parse(userData);
+        } else if (currentUserData) {
+            const parsedData = JSON.parse(currentUserData);
+            loggedInUser = parsedData.user || parsedData;
+        } else if (loggedInUserData) {
+            const parsedData = JSON.parse(loggedInUserData);
+            loggedInUser = parsedData.user || parsedData;
+        }
+        
+        if (!loggedInUser) {
+            console.log('לא נמצא משתמש מחובר');
+            return;
+        }
+        
+        console.log('משתמש מחובר:', loggedInUser);
+        
+        if (!loggedInUser.id) {
+            console.log('למשתמש אין ID');
+            return;
+        }
+        
+        console.log('מנסה לעדכן עגלה עבור משתמש:', loggedInUser.id);
+        
+        const response = await fetch(`/api/users/${loggedInUser.id}`);
+        if (!response.ok) throw new Error('שגיאה בקבלת פרטי משתמש');
+        const user = await response.json();
+        console.log('פרטי משתמש נוכחיים:', user);
+        
+        // שליחת העדכון לשרת
+        const updateData = {
+            name: user.name,
+            phone: user.phone,
+            address: user.address,
+            city: user.city,
+            position: user.position,
+            notes: user.notes,
+            admin_notes: user.admin_notes,
+            password: user.password,
+            code: user.code,
+            debt_balance: user.debt_balance,
+            cart: basket
+        };
+        
+        console.log('שולח לשרת:', updateData);
+        
+        const updateResponse = await fetch(`/api/users/${loggedInUser.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
+            console.error('שגיאה מהשרת:', errorData);
+            throw new Error(errorData.message || 'שגיאה בעדכון העגלה');
+        }
+
+        const updatedUserResponse = await updateResponse.json();
+        console.log('תשובה מהשרת אחרי עדכון:', updatedUserResponse);
+        
+        // עדכון פרטי המשתמש בכל המקומות
+        const updatedUserData = {
+            ...loggedInUser,
+            cart: basket
+        };
+        
+        localStorage.setItem("user", JSON.stringify(updatedUserData));
+        localStorage.setItem("currentUser", JSON.stringify(updatedUserData));
+        localStorage.setItem("loggedInUser", JSON.stringify(updatedUserData));
+        console.log('עדכון local storage הושלם');
+        
+    } catch (error) {
+        console.error('שגיאה בעדכון העגלה:', error);
+    }
+    
+    // עדכון סופי של התצוגה
+    calculation();
+  };
+
+  // Increment item quantity
+  let increment = async (id) => {
+    console.log('מתחיל increment עבור מוצר:', id);
+    id = id.toString();
+    let item = basketMap.get(id);
+    
+    if (!item) {
+        item = { id, item: 1 };
+        basketMap.set(id, item);
+        basket.push(item);
+        console.log('הוספת מוצר חדש לעגלה:', item);
+    } else {
+        item.item++;
+        console.log('עדכון כמות למוצר קיים:', item);
+    }
+    
+    // עדכון התצוגה מיד
+    const quantityDisplay = document.getElementById(id);
+    if (quantityDisplay) {
+        quantityDisplay.textContent = item.item;
+    }
+    
+    console.log('מצב העגלה לפני updateCart:', basket);
+    await updateCart();
+    
+    // עדכון נוסף של התצוגה אחרי העדכון בשרת
     updateQuantityDisplay();
-  }
+  };
+
+  // Decrement item quantity
+  let decrement = async (id) => {
+    console.log('מתחיל decrement עבור מוצר:', id);
+    id = id.toString();
+    let item = basketMap.get(id);
+    
+    if (!item || item.item === 0) return;
+    
+    item.item--;
+    console.log('הפחתת כמות למוצר:', item);
+    
+    // עדכון התצוגה מיד
+    const quantityDisplay = document.getElementById(id);
+    if (quantityDisplay) {
+        quantityDisplay.textContent = item.item;
+    }
+    
+    if (item.item === 0) {
+        basketMap.delete(id);
+        basket = basket.filter(x => x.id !== id);
+        console.log('הסרת מוצר מהעגלה:', id);
+    }
+    
+    console.log('מצב העגלה לפני updateCart:', basket);
+    await updateCart();
+    
+    // עדכון נוסף של התצוגה אחרי העדכון בשרת
+    updateQuantityDisplay();
+  };
 
   function updateQuantityDisplay() {
     // קודם נאפס את כל התצוגות
@@ -384,7 +411,6 @@ function showUserEditForm() {
         </div>
         <div class="form-actions">
             <button type="submit" class="save-button">שמור שינויים</button>
-            <button type="button" class="cancel-button">ביטול</button>
         </div>
     `;
 

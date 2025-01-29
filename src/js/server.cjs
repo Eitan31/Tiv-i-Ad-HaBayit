@@ -33,6 +33,14 @@ const connection = mysql.createPool({
       console.log('Added admin_notes column to users table.');
     }
 
+    // בדיקה אם העמודה cart קיימת
+    const [cartColumns] = await connection.query('SHOW COLUMNS FROM users LIKE "cart"');
+    if (cartColumns.length === 0) {
+      // אם העמודה לא קיימת, נוסיף אותה
+      await connection.query('ALTER TABLE users ADD COLUMN cart JSON DEFAULT NULL');
+      console.log('Added cart column to users table.');
+    }
+
     // עדכון השדות maps ו-waze ל-TEXT
     await connection.query(`
       ALTER TABLE users 
@@ -158,6 +166,7 @@ app.post('/api/users', async (req, res) => {
   // טיפול ב-notes ו-admin_notes
   let processedNotes = Array.isArray(notes) ? JSON.stringify(notes) : JSON.stringify([]);
   let processedAdminNotes = Array.isArray(admin_notes) ? JSON.stringify(admin_notes) : JSON.stringify([]);
+  let processedCart = Array.isArray(cart) ? JSON.stringify(cart) : JSON.stringify([]);
 
   console.log('Processing notes:', { notes, admin_notes, processedNotes, processedAdminNotes }); // לוג לבדיקה
 
@@ -169,7 +178,7 @@ app.post('/api/users', async (req, res) => {
         id, name, phone, address, city, position || 0, 
         processedNotes,
         processedAdminNotes,
-        JSON.stringify(cart || []), 
+        processedCart,
         JSON.stringify(purchases || []),
         password || phone, maps, waze,
         code || '',
@@ -228,11 +237,7 @@ app.put('/api/users/:id', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const { name, phone, address, city, position, notes, admin_notes, password, code, debt_balance } = req.body;
-
-        // יצירת כתובות מפות בפורמט מקוצר
-        const maps = `https://maps.google.com/?q=${encodeURIComponent(address + ' ' + city)}`;
-        const waze = `https://waze.com/ul?q=${encodeURIComponent(address + ' ' + city)}&navigate=yes`;
+        const { name, phone, address, city, position, notes, admin_notes, password, code, debt_balance, cart } = req.body;
 
         // טיפול ב-notes ו-admin_notes
         let processedNotes = notes;
@@ -240,7 +245,6 @@ app.put('/api/users/:id', async (req, res) => {
             processedNotes = JSON.stringify(notes);
         } else if (typeof notes === 'string') {
             try {
-                // בדיקה אם זו מחרוזת JSON תקינה
                 JSON.parse(notes);
                 processedNotes = notes;
             } catch (e) {
@@ -255,7 +259,6 @@ app.put('/api/users/:id', async (req, res) => {
             processedAdminNotes = JSON.stringify(admin_notes);
         } else if (typeof admin_notes === 'string') {
             try {
-                // בדיקה אם זו מחרוזת JSON תקינה
                 JSON.parse(admin_notes);
                 processedAdminNotes = admin_notes;
             } catch (e) {
@@ -263,6 +266,21 @@ app.put('/api/users/:id', async (req, res) => {
             }
         } else {
             processedAdminNotes = '[]';
+        }
+
+        // טיפול בעגלה
+        let processedCart = cart;
+        if (Array.isArray(cart)) {
+            processedCart = JSON.stringify(cart);
+        } else if (typeof cart === 'string') {
+            try {
+                JSON.parse(cart);
+                processedCart = cart;
+            } catch (e) {
+                processedCart = '[]';
+            }
+        } else {
+            processedCart = '[]';
         }
 
         // עדכון המשתמש
@@ -276,10 +294,9 @@ app.put('/api/users/:id', async (req, res) => {
                  notes = ?, 
                  admin_notes = ?,
                  password = ?, 
-                 maps = ?, 
-                 waze = ?, 
                  code = ?, 
-                 debt_balance = ?
+                 debt_balance = ?,
+                 cart = ?
              WHERE id = ?`,
             [
                 name, 
@@ -290,10 +307,9 @@ app.put('/api/users/:id', async (req, res) => {
                 processedNotes,
                 processedAdminNotes, 
                 password || phone, 
-                maps, 
-                waze, 
                 code || '', 
                 debt_balance || 0, 
+                processedCart,
                 id
             ]
         );
@@ -564,12 +580,32 @@ app.post('/api/users/login', async (req, res) => {
         // הדפסת הפרמטרים שהתקבלו
         console.log('Login attempt:', { identifier, password });
 
+        // בדיקה אם המשתמש קיים לפי שם או טלפון
+        const [usersCheck] = await connection.query(
+            'SELECT * FROM users WHERE name = ? OR phone = ?',
+            [identifier, identifier]
+        );
+        
+        console.log('Users found by identifier:', usersCheck.length);
+        
+        if (usersCheck.length === 0) {
+            console.log('No user found with identifier:', identifier);
+            return res.status(401).json({ 
+                success: false, 
+                message: 'שם משתמש או סיסמה שגויים' 
+            });
+        }
+
+        // בדיקת הסיסמה
         const [users] = await connection.query(
             'SELECT * FROM users WHERE (name = ? OR phone = ?) AND password = ?',
             [identifier, identifier, password]
         );
         
+        console.log('Users found with matching password:', users.length);
+        
         if (users.length === 0) {
+            console.log('Password mismatch for user:', identifier);
             return res.status(401).json({ 
                 success: false, 
                 message: 'שם משתמש או סיסמה שגויים' 
@@ -577,7 +613,7 @@ app.post('/api/users/login', async (req, res) => {
         }
         
         const user = users[0];
-        console.log('Found user:', user); // לוג של המשתמש שנמצא
+        console.log('Found user:', { id: user.id, name: user.name, phone: user.phone }); // לוג של המשתמש שנמצא (ללא מידע רגיש)
 
         // המרת הערות מ-JSON למערך אם צריך
         let userNotes = user.notes;
@@ -661,6 +697,24 @@ app.post('/api/admins', async (req, res) => {
     } catch (err) {
         console.error('שגיאה בעדכון מנהלים:', err);
         res.status(500).json({ success: false, message: 'שגיאה בעדכון מנהלים' });
+    }
+});
+
+// נקודת קצה זמנית לבדיקת סיסמה
+app.get('/api/check-password/:phone', async (req, res) => {
+    try {
+        const [users] = await connection.query(
+            'SELECT name, phone, password FROM users WHERE phone = ?',
+            [req.params.phone]
+        );
+        if (users.length > 0) {
+            res.json({ user: users[0] });
+        } else {
+            res.status(404).json({ message: 'משתמש לא נמצא' });
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
