@@ -21,27 +21,73 @@ window.checkout = async () => {
             return;
         }
 
-        // יצירת אובייקט ההזמנה
+        // עיבוד פריטי העגלה
+        const orderItems = processCartItems(basket, shopItemsMap);
+        if (orderItems.length === 0) {
+            throw new Error('העגלה ריקה');
+        }
+
+        const totalAmount = calculateTotalAmount(orderItems);
+        if (!totalAmount || totalAmount <= 0) {
+            throw new Error('סכום ההזמנה אינו תקין');
+        }
+
         const orderData = {
-            user_id: user.id,
-            items: basket.map(item => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                total: item.price * item.quantity
-            })),
-            total_amount: calculateTotal(),
-            status: 'pending',
-            customer_name: user.name,
-            phone: user.phone,
-            address: user.address
+            customerId: user.id,
+            items: orderItems,
+            totalAmount: totalAmount
         };
 
         console.log('שולח הזמנה:', orderData);
+        const response = await submitOrder(orderData);
+        console.log('הזמנה נשמרה:', response);
 
-        // שליחת ההזמנה לשרת
-        const orderResponse = await fetch('/api/orders', {
+        // ניקוי העגלה
+        await clearCart();
+        
+        alert('ההזמנה בוצעה בהצלחה!');
+        
+        // נחכה 3 שניות לפני רענון הדף
+        setTimeout(() => {
+            window.location.reload();
+        }, 3000);
+
+    } catch (error) {
+        console.error('שגיאה בביצוע ההזמנה:', error);
+        alert('אירעה שגיאה בביצוע ההזמנה: ' + error.message);
+    }
+};
+
+// פונקציה לעיבוד פריטי העגלה להזמנה
+function processCartItems(basket, shopItemsMap) {
+    return basket.map(item => {
+        const product = shopItemsMap.get(item.id.toString());
+        if (!product) {
+            console.error('לא נמצא מוצר עם ID:', item.id);
+            return null;
+        }
+        const quantity = item.item || item.quantity || 1;
+        const total = product.price * quantity;
+        
+        return {
+            id: item.id,
+            name: product.name,
+            price: product.price,
+            quantity: quantity,
+            total: total
+        };
+    }).filter(item => item !== null);
+}
+
+// פונקציה לחישוב סכום כולל של העגלה
+function calculateTotalAmount(items) {
+    return items.reduce((sum, item) => sum + item.total, 0);
+}
+
+// פונקציה לשליחת הזמנה לשרת
+async function submitOrder(orderData) {
+    try {
+        const response = await fetch('/api/orders', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -49,123 +95,73 @@ window.checkout = async () => {
             body: JSON.stringify(orderData)
         });
 
-        if (!orderResponse.ok) {
-            const errorData = await orderResponse.text();
-            console.error('תשובת שגיאה מהשרת:', errorData);
-            throw new Error('שגיאה בשמירת ההזמנה בטבלת orders: ' + errorData);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'שגיאה בשמירת ההזמנה');
         }
 
-        const orderResult = await orderResponse.json();
-        console.log('תשובה מהשרת:', orderResult); // לוג לבדיקה
+        return await response.json();
+    } catch (error) {
+        console.error('שגיאה בשליחת ההזמנה:', error);
+        throw error;
+    }
+}
 
-        // קבלת פרטי המשתמש העדכניים
-        const userResponse = await fetch(`/api/users/${user.id}`);
-        if (!userResponse.ok) throw new Error('שגיאה בקבלת פרטי משתמש');
-        const currentUser = await userResponse.json();
-        console.log('פרטי משתמש נוכחיים:', currentUser);
-
-        // הכנת ההזמנה להיסטוריית הרכישות של המשתמש
-        let purchases = [];
-        try {
-            // אם purchases הוא string, ננסה לפענח אותו
-            if (typeof currentUser.purchases === 'string' && currentUser.purchases) {
-                purchases = JSON.parse(currentUser.purchases);
-            } 
-            // אם purchases הוא array, נשתמש בו ישירות
-            else if (Array.isArray(currentUser.purchases)) {
-                purchases = currentUser.purchases;
-            }
-        } catch (e) {
-            console.log('שגיאה בפענוח purchases:', e);
-            purchases = [];
-        }
-
-        console.log('purchases לפני הוספת ההזמנה החדשה:', purchases);
-
-        // יצירת אובייקט ההזמנה החדשה
-        const newPurchase = {
-            orderId: orderResult.id,
-            date: new Date().toISOString(),
-            items: orderItems,
-            totalAmount: totalAmount,
-            status: 'חדשה',
-            customerName: user.name,
-            phone: user.phone,
-            address: user.address
-        };
-
-        // הוספת ההזמנה החדשה למערך הרכישות
-        if (!Array.isArray(purchases)) {
-            purchases = [];
-        }
-        purchases.push(newPurchase);
-
-        console.log('purchases אחרי הוספת ההזמנה החדשה:', purchases);
-
-        // עדכון פרטי המשתמש עם הרכישה החדשה
-        const updateData = {
-            id: user.id,
-            name: user.name,
-            phone: user.phone,
-            address: user.address,
-            city: user.city || '',
-            position: user.position || '',
-            notes: user.notes || '',
-            admin_notes: user.admin_notes || '',
-            password: user.password,
-            code: user.code || '',
-            debt_balance: user.debt_balance || 0,
-            maps: user.maps || '',
-            isAdmin: user.isAdmin || false,
-            purchases: JSON.stringify(purchases)  // המרה ל-JSON string
-        };
-
-        console.log('מעדכן פרטי משתמש:', updateData);
-        console.log('תוכן ה-purchases שנשלח:', purchases);
-
-        const updateResponse = await fetch(`/api/users/${user.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(updateData)
-        });
-
-        if (!updateResponse.ok) {
-            const errorData = await updateResponse.text();  // שינוי ל-text() כדי לראות את השגיאה המלאה
-            console.error('תשובת שגיאה מהשרת בעדכון משתמש:', errorData);
-            throw new Error('שגיאה בעדכון פרטי המשתמש: ' + errorData);
-        }
-
-        const updatedUser = await updateResponse.json();
-        console.log('פרטי משתמש עודכנו:', updatedUser);
-
-        // עדכון ה-localStorage
-        const updatedUserData = {
-            ...updatedUser,
-            purchases: purchases,  // שמירת purchases כמערך ב-localStorage
-            isAdmin: user.isAdmin  // שמירה על סטטוס המנהל
-        };
-        
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
-        localStorage.setItem('loggedInUser', JSON.stringify(updatedUserData));
-
-        // ניקוי העגלה
+// פונקציה לניקוי העגלה
+async function clearCart() {
+    try {
         basket = [];
-        localStorage.setItem('basket', JSON.stringify(basket));
-        localStorage.setItem('data', JSON.stringify([]));  // ניקוי גם של data
+        localStorage.setItem("data", JSON.stringify([]));
+        
+        const user = JSON.parse(localStorage.getItem('user')) || 
+                    JSON.parse(localStorage.getItem('currentUser')) || 
+                    JSON.parse(localStorage.getItem('loggedInUser'));
+                    
+        if (user && user.id) {
+            // עדכון העגלה בשרת
+            const updateResponse = await fetch(`/api/users/${user.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    cart: []
+                })
+            });
+
+            if (!updateResponse.ok) {
+                throw new Error('שגיאה בניקוי העגלה בשרת');
+            }
+
+            // עדכון ה-localStorage
+            const updatedUserData = {
+                ...user,
+                cart: []
+            };
+            
+            localStorage.setItem('user', JSON.stringify(updatedUserData));
+            localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
+            localStorage.setItem('loggedInUser', JSON.stringify(updatedUserData));
+        }
         
         // עדכון התצוגה
-        displayCart();
-        alert('ההזמנה בוצעה בהצלחה!');
-        window.location.href = "index.html";  // מעבר לדף הבית אחרי ההזמנה
-
+        generateCartItems();
+        calculation();
+        totalAmount();
     } catch (error) {
-        console.error('שגיאה בביצוע ההזמנה:', error);
-        alert('אירעה שגיאה בביצוע ההזמנה. אנא נסה שוב מאוחר יותר.');
+        console.error('שגיאה בניקוי העגלה:', error);
+        alert('אירעה שגיאה בניקוי העגלה. אנא נסה שוב מאוחר יותר.');
     }
-};
+}
+
+// פונקציה לחישוב סה"כ העגלה
+function calculateTotal() {
+    let total = 0;
+    for (let item of basket) {
+        total += item.price * item.quantity;
+    }
+    return total;
+}
 
 // Update cart icon quantity
 let calculation = () => {
@@ -182,6 +178,7 @@ async function loadProducts() {
         const response = await fetch("http://localhost:3000/api/products");
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const products = await response.json();
+        console.log('מוצרים מהשרת:', products);
 
         // ניקוי והכנת המפות
         shopItems.length = 0;
@@ -190,17 +187,19 @@ async function loadProducts() {
 
         // עיבוד מוצרים בפעם אחת
         products.forEach(product => {
+            console.log('מוצר גולמי מהשרת:', product);
             const item = {
                 id: product.id.toString(),
                 name: product.name,
                 price: product.price,
-                desc: product.description || "תיאור חסר",
+                description: product.description || '',
                 img: product.image || imgPath,
                 category: product.category || "לא מסווג",
                 volume: product.volume || "N/A",
                 shelfLife: product.shelfLife || "לא ידוע",
                 storage: product.storage || "N/A",
             };
+            console.log('מוצר אחרי עיבוד עם תיאור:', item);
             shopItems.push(item);
             shopItemsMap.set(item.id, item);
         });
@@ -213,15 +212,12 @@ async function loadProducts() {
     }
 }
 
-// Generate cart items UI
-let generateCartItems = () => {
+// פונקציה לעדכון תצוגת סל הקניות
+function generateCartItems() {
     const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
     const cartTitle = loggedInUser ? `סל הקניות של ${loggedInUser.name}` : 'סל הקניות';
 
-    // יצירת כותרת בלבד
-    label.innerHTML = `<div class="cart-title">${cartTitle}</div>`;
-
-    if (basketMap.size === 0) {
+    if (basket.length === 0) {
         shoppingCart.innerHTML = "";
         label.innerHTML = `
             <h2>הסל ריק</h2>
@@ -232,10 +228,26 @@ let generateCartItems = () => {
         return;
     }
 
+    // יצירת כותרת וכפתורים
+    const totalPrice = basket.reduce((total, item) => {
+        const product = shopItemsMap.get(item.id.toString());
+        return total + (product ? product.price * item.item : 0);
+    }, 0);
+
+    label.innerHTML = `
+        <div class="cart-title">${cartTitle}</div>
+        <h2>מחיר כולל: ${totalPrice}₪</h2>
+        <div class="checkout-buttons">
+            <button class="checkout" onclick="window.checkout()">בצע הזמנה</button>
+            <button onclick="clearCart()" class="removeAll">הסרת כל הפריטים</button>
+        </div>
+    `;
+
+    // יצירת פריטי העגלה
     const fragment = document.createDocumentFragment();
     
-    for (const [id, basketItem] of basketMap) {
-        const product = shopItemsMap.get(id);
+    for (const item of basket) {
+        const product = shopItemsMap.get(item.id.toString());
         if (!product) continue;
 
         const cartItem = document.createElement('div');
@@ -248,24 +260,24 @@ let generateCartItems = () => {
                 </h4>
                 <img width="100" src="${product.img}" alt="${product.name}" />
                 <div class="details">
-                    <i onclick="removeItem('${id}')" class="bi bi-x-lg"></i>
+                    <i onclick="removeItem('${item.id}')" class="bi bi-x-lg"></i>
                     <div class="buttons">
-                        <i onclick="increment('${id}')" class="bi bi-plus-lg"></i>
-                        <div id="${id}" class="quantity">${basketItem.item}</div>
-                        <i onclick="decrement('${id}')" class="bi bi-dash-lg"></i>
+                        <i onclick="increment('${item.id}')" class="bi bi-plus-lg"></i>
+                        <div id="${item.id}" class="quantity">${item.item}</div>
+                        <i onclick="decrement('${item.id}')" class="bi bi-dash-lg"></i>
                     </div>
                 </div>
             </div>
-            <div class="info-icon-cart" id="info-${id}">
-                <i onclick="toggleProductInfo('${id}')" class="bi bi-info-circle"></i>
-                <div class="info-content-cart" id="content-${id}">
+            <div class="info-icon-cart" id="info-${item.id}">
+                <i onclick="toggleProductInfo('${item.id}')" class="bi bi-info-circle"></i>
+                <div class="info-content-cart" id="content-${item.id}">
                     <p><strong>תוקף:</strong> ${product.shelfLife}</p>
                     <p><strong>אחסון:</strong> ${product.storage}</p>
                     <p><strong>כמות:</strong> ${product.volume}</p>
                 </div>
             </div>
             <div class="cart-item-total">
-                <h3 data-id="${id}">${basketItem.item * product.price}₪</h3>
+                <h3 data-id="${item.id}">${item.item * product.price}₪</h3>
             </div>
         `;
         
@@ -274,6 +286,20 @@ let generateCartItems = () => {
 
     shoppingCart.innerHTML = '';
     shoppingCart.appendChild(fragment);
+
+    // עדכון המחיר הכללי
+    const totalPriceFloating = document.getElementById('totalPriceFloating');
+    if (totalPriceFloating) {
+        totalPriceFloating.textContent = `סה"כ: ₪${totalPrice}`;
+    }
+}
+
+// Update quantity and UI
+let update = (id) => {
+    let search = basket.find((x) => x.id === id);
+    document.getElementById(id).innerHTML = search ? search.item : 0;
+    calculation();
+    generateCartItems(); // קריאה לפונקציה המעודכנת
 };
 
 // Attach event listeners to dynamic elements
@@ -307,155 +333,130 @@ let toggleProductInfo = (id) => {
 let increment = async (id) => {
     console.log('מתחיל increment עבור מוצר:', id);
     id = id.toString();
-    let item = basketMap.get(id);
     
-    if (!item) {
-        item = { id, item: 1 };
-        basketMap.set(id, item);
-        basket.push(item);
-        console.log('הוספת מוצר חדש לעגלה:', item);
+    // מציאת המוצר בעגלה
+    let itemIndex = basket.findIndex(x => x.id === id);
+    
+    if (itemIndex === -1) {
+        // אם המוצר לא קיים בעגלה, נוסיף אותו
+        basket.push({
+            id: id,
+            item: 1
+        });
     } else {
-        item.item++;
-        console.log('עדכון כמות למוצר קיים:', item);
+        // אם המוצר קיים, נעדכן את הכמות
+        basket[itemIndex].item += 1;
     }
     
-    console.log('מצב העגלה לפני updateCart:', basket);
+    console.log('מצב העגלה אחרי increment:', basket);
     await updateCart();
+    generateCartItems();
+    calculation();
 };
 
 // Decrement item quantity
 let decrement = async (id) => {
     console.log('מתחיל decrement עבור מוצר:', id);
     id = id.toString();
-    let item = basketMap.get(id);
     
-    if (!item || item.item === 0) return;
+    // מציאת המוצר בעגלה
+    let itemIndex = basket.findIndex(x => x.id === id);
     
-    item.item--;
-    console.log('הפחתת כמות למוצר:', item);
+    if (itemIndex === -1) return; // אם המוצר לא קיים בעגלה, נצא
     
-    if (item.item === 0) {
-        basketMap.delete(id);
+    // אם הכמות היא 1, נסיר את המוצר מהעגלה
+    if (basket[itemIndex].item === 1) {
         basket = basket.filter(x => x.id !== id);
-        console.log('הסרת מוצר מהעגלה:', id);
+    } else {
+        // אחרת, נפחית את הכמות ב-1
+        basket[itemIndex].item -= 1;
     }
     
-    console.log('מצב העגלה לפני updateCart:', basket);
+    console.log('מצב העגלה אחרי decrement:', basket);
     await updateCart();
+    generateCartItems();
+    calculation();
 };
 
 // Update quantity and UI       
 // עדכון basket ו-localStorage
 let updateCart = async () => {
-    console.log('מתחיל updateCart עם העגלה:', basket);
-    localStorage.setItem("data", JSON.stringify(basket));
-    
-    // בדיקת משתמש מחובר (בודק גם currentUser וגם loggedInUser)
-    const currentUserData = localStorage.getItem("currentUser");
-    const loggedInUserData = localStorage.getItem("loggedInUser");
-    
-    console.log('נתוני משתמש מ-localStorage:', { currentUser: currentUserData, loggedInUser: loggedInUserData });
-    
-    let loggedInUser;
     try {
-        if (currentUserData) {
-            const parsedData = JSON.parse(currentUserData);
-            loggedInUser = parsedData.user || parsedData;
-        } else if (loggedInUserData) {
-            const parsedData = JSON.parse(loggedInUserData);
-            loggedInUser = parsedData.user || parsedData;
-        }
-        
-        if (!loggedInUser) {
+        const user = JSON.parse(localStorage.getItem('user')) || 
+                    JSON.parse(localStorage.getItem('currentUser')) || 
+                    JSON.parse(localStorage.getItem('loggedInUser'));
+                    
+        if (!user || !user.id) {
             console.log('לא נמצא משתמש מחובר');
             return;
         }
+
+        console.log('מתחיל updateCart עם העגלה:', basket);
         
-        console.log('משתמש מחובר:', loggedInUser);
+        // עדכון localStorage
+        localStorage.setItem("data", JSON.stringify(basket));
         
-        if (!loggedInUser.id) {
-            console.log('למשתמש אין ID');
-            return;
-        }
+        // הכנת העגלה לשליחה - וידוא שכל פריט מכיל את השדות הנדרשים
+        const cartItems = basket.map(item => ({
+            id: item.id,
+            item: item.item || 1
+        }));
+
+        console.log('שולח לשרת:', cartItems);
         
-        console.log('מנסה לעדכן עגלה עבור משתמש:', loggedInUser.id);
-        
-        const response = await fetch(`/api/users/${loggedInUser.id}`);
-        if (!response.ok) throw new Error('שגיאה בקבלת פרטי משתמש');
-        const user = await response.json();
-        console.log('פרטי משתמש נוכחיים:', user);
-        
-        // שליחת העדכון לשרת
-        const updateData = {
-            name: user.name,
-            phone: user.phone,
-            address: user.address,
-            city: user.city,
-            position: user.position,
-            notes: user.notes,
-            admin_notes: user.admin_notes,
-            password: user.password,
-            code: user.code,
-            debt_balance: user.debt_balance,
-            cart: basket
-        };
-        
-        console.log('שולח לשרת:', updateData);
-        
-        const updateResponse = await fetch(`/api/users/${loggedInUser.id}`, {
+        // עדכון העגלה בשרת
+        const updateResponse = await fetch(`/api/users/${user.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(updateData)
+            body: JSON.stringify({
+                cart: cartItems
+            })
         });
         
         if (!updateResponse.ok) {
             const errorData = await updateResponse.json();
             console.error('שגיאה מהשרת:', errorData);
-            throw new Error(errorData.message || 'שגיאה בעדכון העגלה');
+            throw new Error(errorData.error || 'שגיאה בעדכון העגלה');
         }
 
-        const updatedUserResponse = await updateResponse.json();
-        console.log('תשובה מהשרת אחרי עדכון משתמש:', updatedUserResponse);
+        const updatedUser = await updateResponse.json();
+        console.log('תשובה מהשרת אחרי עדכון:', updatedUser);
         
-        // עדכון פרטי המשתמש בשני המקומות
+        // עדכון ה-localStorage עם הנתונים החדשים
         const updatedUserData = {
-            ...loggedInUser,
-            cart: basket
+            ...user,
+            cart: cartItems
         };
         
-        localStorage.setItem("currentUser", JSON.stringify(updatedUserData));
-        localStorage.setItem("loggedInUser", JSON.stringify(updatedUserData));
-        console.log('עדכון local storage הושלם');
+        localStorage.setItem('user', JSON.stringify(updatedUserData));
+        localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
+        localStorage.setItem('loggedInUser', JSON.stringify(updatedUserData));
+        
+        // עדכון התצוגה
+        generateCartItems();
+        calculation();
         
     } catch (error) {
         console.error('שגיאה בעדכון העגלה:', error);
+        alert('אירעה שגיאה בעדכון העגלה. אנא נסה שוב מאוחר יותר.');
     }
-    
-    generateCartItems();
-    calculation();
-    totalAmount();
 };
 
 // Remove item
 let removeItem = async (id) => {
     id = id.toString();
-    basketMap.delete(id);
     basket = basket.filter(x => x.id !== id);
-    await updateCart();
-};
-
-// Clear cart
-let clearCart = async () => {
-    basket = [];
-    basketMap.clear();
-    await updateCart();
+    localStorage.setItem("data", JSON.stringify(basket));
+    generateCartItems();
+    calculation();
+    totalAmount();
 };
 
 // Calculate total amount
 let totalAmount = () => {
-    if (basketMap.size === 0) {
+    if (basket.length === 0) {
         // עדכון המחיר הצף כשהסל ריק
         const floatingPrice = document.getElementById('totalPriceFloating');
         if (floatingPrice) {
@@ -464,9 +465,9 @@ let totalAmount = () => {
         return;
     }
 
-    const amount = Array.from(basketMap.entries()).reduce((total, [id, item]) => {
-        const product = shopItemsMap.get(id);
-        return total + (item.item * (product?.price || 0));
+    const amount = basket.reduce((total, item) => {
+        const product = shopItemsMap.get(item.id.toString());
+        return total + (product ? product.price * item.item : 0);
     }, 0);
 
     // עדכון המחיר הצף
@@ -474,14 +475,6 @@ let totalAmount = () => {
     if (floatingPrice) {
         floatingPrice.textContent = `סה"כ: ₪${amount}`;
     }
-
-    label.innerHTML += `
-        <h2>מחיר כולל: ${amount}₪</h2>
-        <div class="buttons-container">
-            <button class="checkout" onclick="window.checkout()">בצע הזמנה</button>
-            <button onclick="clearCart()" class="removeAll">הסרת כל הפריטים</button>
-        </div>
-    `;
 };
 
 // Export functions to window object
@@ -491,7 +484,8 @@ Object.assign(window, {
     totalAmount,
     removeItem,
     checkout,
-    calculation
+    calculation,
+    clearCart
 });
 
 // אתחול
@@ -566,91 +560,39 @@ function addNavigationButtons() {
     }
 }
 
-async function placeOrder() {
-    try {
-        const user = JSON.parse(localStorage.getItem('user')) || 
-                    JSON.parse(localStorage.getItem('currentUser')) || 
-                    JSON.parse(localStorage.getItem('loggedInUser'));
+// פונקציה להצגת העגלה
+function displayCart() {
+    const cartContainer = document.querySelector('.cart-container');
+    if (!cartContainer) return;
+
+    if (!basket || basket.length === 0) {
+        cartContainer.innerHTML = '<p>העגלה ריקה</p>';
+        return;
+    }
+
+    let total = 0;
+    let cartHTML = '<div class="cart-items">';
+    
+    basket.forEach(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
         
-        if (!user || !user.id) {
-            alert('נא להתחבר לפני ביצוע ההזמנה');
-            return;
-        }
-
-        // יצירת אובייקט ההזמנה
-        const orderData = {
-            user_id: user.id,
-            items: basket.map(item => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                total: item.price * item.quantity
-            })),
-            total_amount: calculateTotal(),
-            status: 'pending',
-            customer_name: user.name,
-            phone: user.phone,
-            address: user.address
-        };
-
-        console.log('שולח הזמנה:', orderData);
-
-        // שליחת ההזמנה לשרת
-        const orderResponse = await fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(orderData)
-        });
-
-        if (!orderResponse.ok) {
-            const errorData = await orderResponse.json();
-            throw new Error(errorData.message || 'שגיאה בשמירת ההזמנה');
-        }
-
-        const order = await orderResponse.json();
-        console.log('הזמנה נשמרה:', order);
-
-        // עדכון פרטי המשתמש
-        let purchases = user.purchases || [];
-        if (typeof purchases === 'string') {
-            try {
-                purchases = JSON.parse(purchases);
-            } catch (e) {
-                purchases = [];
-            }
-        }
-        if (!Array.isArray(purchases)) {
-            purchases = [];
-        }
-
-        // הוספת ההזמנה לרשימת הרכישות
-        purchases.push({
-            orderId: order.id,
-            date: new Date().toISOString(),
-            items: orderData.items,
-            total: orderData.total_amount,
-            status: orderData.status
-        });
-
-        // עדכון פרטי המשתמש בשרת
-        const updateData = {
-            ...user,
-            purchases: purchases,
-            cart: []  // ניקוי העגלה
-        };
-
-        console.log('מעדכן פרטי משתמש:', updateData);
-
-        const updateResponse = await fetch(`/api/users/${user.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(updateData)
-        });
+        cartHTML += `
+            <div class="cart-item">
+                <div class="item-details">
+                    <h3>${item.name}</h3>
+                    <p>מחיר: ₪${item.price}</p>
+                    <p>כמות: ${item.quantity}</p>
+                    <p>סה"כ: ₪${itemTotal}</p>
+                </div>
+                <div class="item-actions">
+                    <button onclick="removeFromCart(${item.id})">הסר</button>
+                    <button onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                    <button onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                </div>
+            </div>
+        `;
+    });
 
     cartHTML += `</div>
         <div class="cart-summary">
@@ -661,3 +603,32 @@ async function placeOrder() {
 
     cartContainer.innerHTML = cartHTML;
 }
+
+// פונקציה להסרת פריט מהעגלה
+window.removeFromCart = (id) => {
+    const index = basket.findIndex(item => item.id === id);
+    if (index !== -1) {
+        basket.splice(index, 1);
+        localStorage.setItem("data", JSON.stringify(basket));
+        displayCart();
+    }
+};
+
+// פונקציה לעדכון כמות של פריט
+window.updateQuantity = (id, newQuantity) => {
+    if (newQuantity < 0) return;
+    
+    const item = basket.find(item => item.id === id);
+    if (item) {
+        item.quantity = newQuantity;
+        if (item.quantity === 0) {
+            removeFromCart(id);
+        } else {
+            localStorage.setItem("data", JSON.stringify(basket));
+            displayCart();
+        }
+    }
+};
+
+// קריאה ראשונית להצגת העגלה
+displayCart();

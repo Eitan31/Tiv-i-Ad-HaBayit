@@ -1,5 +1,10 @@
 import { Product, shopItems } from "./product.js";
 
+// משתנים גלובליים
+window.basket = JSON.parse(localStorage.getItem("data")) || [];
+let shop = document.getElementById('shop');
+let isLoading = false;
+
 // פונקציה להוספת כפתורי ניווט - משותפת לכל הדפים
 export function addNavigationButtons() {
     const navButtons = document.querySelector('.nav-buttons');
@@ -64,6 +69,45 @@ window.handleLogout = () => {
     window.location.href = 'index.html';
 };
 
+// פונקציה לעדכון המחיר הכולל
+function updateTotalPrice() {
+    const totalPrice = window.basket.reduce((total, item) => {
+        const product = shopItems.find(p => p.id === item.id);
+        return total + (product ? product.price * item.item : 0);
+    }, 0);
+
+    const label = document.getElementById("label");
+    if (!label) return;
+
+    // בדיקה אם יש כבר את המבנה הנדרש
+    let priceElement = label.querySelector('.total-price');
+    let buttonsElement = label.querySelector('.checkout-buttons');
+
+    // אם אין מבנה, ניצור אותו
+    if (!priceElement || !buttonsElement) {
+        label.innerHTML = `
+            <h2 class="total-price">מחיר כולל: ${totalPrice}₪</h2>
+            <div class="checkout-buttons">
+                <button class="checkout" onclick="window.checkout()">בצע הזמנה</button>
+                <button onclick="clearCart()" class="removeAll">הסרת כל הפריטים</button>
+            </div>
+        `;
+    } else {
+        // אם יש מבנה, נעדכן רק את המחיר
+        priceElement.textContent = `מחיר כולל: ${totalPrice}₪`;
+    }
+}
+
+// עדכון פונקציית calculation
+function calculation() {
+    const cartIcon = document.getElementById("cartAmount");
+    if (cartIcon) {
+        const total = window.basket.reduce((sum, item) => sum + (item.item || 0), 0);
+        cartIcon.textContent = total;
+    }
+    updateTotalPrice();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   let shop = document.getElementById('shop');
   let basket = JSON.parse(localStorage.getItem("data")) || [];
@@ -74,188 +118,143 @@ document.addEventListener('DOMContentLoaded', function() {
   const CACHE_KEY = 'products_cache';
   const CACHE_DURATION = 5 * 60 * 1000; // 5 דקות
 
-  // עדכון basket ו-localStorage
+  // עדכון העגלה
   let updateCart = async () => {
-    console.log('מתחיל updateCart עם העגלה:', basket);
-    localStorage.setItem("data", JSON.stringify(basket));
-    
-    // עדכון התצוגה מיד
-    calculation();
-    
-    // בדיקת משתמש מחובר (בודק גם user וגם currentUser וגם loggedInUser)
-    const userData = localStorage.getItem("user");
-    const currentUserData = localStorage.getItem("currentUser");
-    const loggedInUserData = localStorage.getItem("loggedInUser");
-    
-    console.log('נתוני משתמש מ-localStorage:', { user: userData, currentUser: currentUserData, loggedInUser: loggedInUserData });
-    
-    let loggedInUser;
     try {
-        if (userData) {
-            loggedInUser = JSON.parse(userData);
-        } else if (currentUserData) {
-            const parsedData = JSON.parse(currentUserData);
-            loggedInUser = parsedData.user || parsedData;
-        } else if (loggedInUserData) {
-            const parsedData = JSON.parse(loggedInUserData);
-            loggedInUser = parsedData.user || parsedData;
-        }
-        
-        if (!loggedInUser) {
+        const user = JSON.parse(localStorage.getItem('user')) || 
+                    JSON.parse(localStorage.getItem('currentUser')) || 
+                    JSON.parse(localStorage.getItem('loggedInUser'));
+                    
+        if (!user || !user.id) {
             console.log('לא נמצא משתמש מחובר');
             return;
         }
+
+        console.log('מתחיל updateCart עם העגלה:', window.basket);
         
-        console.log('משתמש מחובר:', loggedInUser);
+        // עדכון localStorage
+        localStorage.setItem("data", JSON.stringify(window.basket));
         
-        if (!loggedInUser.id) {
-            console.log('למשתמש אין ID');
-            return;
-        }
+        // הכנת העגלה לשליחה - וידוא שכל פריט מכיל את השדות הנדרשים
+        const cartItems = window.basket.map(item => ({
+            id: item.id,
+            item: item.item || 1
+        }));
+
+        console.log('שולח לשרת:', cartItems);
         
-        console.log('מנסה לעדכן עגלה עבור משתמש:', loggedInUser.id);
-        
-        const response = await fetch(`/api/users/${loggedInUser.id}`);
-        if (!response.ok) throw new Error('שגיאה בקבלת פרטי משתמש');
-        const user = await response.json();
-        console.log('פרטי משתמש נוכחיים:', user);
-        
-        // שליחת העדכון לשרת
-        const updateData = {
-            name: user.name,
-            phone: user.phone,
-            address: user.address,
-            city: user.city,
-            position: user.position,
-            notes: user.notes,
-            admin_notes: user.admin_notes,
-            password: user.password,
-            code: user.code,
-            debt_balance: user.debt_balance,
-            cart: basket
-        };
-        
-        console.log('שולח לשרת:', updateData);
-        
-        const updateResponse = await fetch(`/api/users/${loggedInUser.id}`, {
+        // עדכון העגלה בשרת
+        const updateResponse = await fetch(`/api/users/${user.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(updateData)
+            body: JSON.stringify({
+                cart: cartItems
+            })
         });
         
         if (!updateResponse.ok) {
             const errorData = await updateResponse.json();
             console.error('שגיאה מהשרת:', errorData);
-            throw new Error(errorData.message || 'שגיאה בעדכון העגלה');
+            throw new Error(errorData.error || 'שגיאה בעדכון העגלה');
         }
 
-        const updatedUserResponse = await updateResponse.json();
-        console.log('תשובה מהשרת אחרי עדכון:', updatedUserResponse);
+        const updatedUser = await updateResponse.json();
+        console.log('תשובה מהשרת אחרי עדכון:', updatedUser);
         
-        // עדכון פרטי המשתמש בכל המקומות
+        // עדכון ה-localStorage עם הנתונים החדשים
         const updatedUserData = {
-            ...loggedInUser,
-            cart: basket
+            ...user,
+            cart: cartItems
         };
         
-        localStorage.setItem("user", JSON.stringify(updatedUserData));
-        localStorage.setItem("currentUser", JSON.stringify(updatedUserData));
-        localStorage.setItem("loggedInUser", JSON.stringify(updatedUserData));
-        console.log('עדכון local storage הושלם');
+        localStorage.setItem('user', JSON.stringify(updatedUserData));
+        localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
+        localStorage.setItem('loggedInUser', JSON.stringify(updatedUserData));
         
     } catch (error) {
         console.error('שגיאה בעדכון העגלה:', error);
+        alert('אירעה שגיאה בעדכון העגלה. אנא נסה שוב מאוחר יותר.');
     }
-    
-    // עדכון סופי של התצוגה
-    calculation();
-  };
+};
 
   // Increment item quantity
-  let increment = async (id) => {
+  window.increment = async (id) => {
     console.log('מתחיל increment עבור מוצר:', id);
     id = id.toString();
-    let item = basketMap.get(id);
     
-    if (!item) {
-        item = { id, item: 1 };
-        basketMap.set(id, item);
-        basket.push(item);
-        console.log('הוספת מוצר חדש לעגלה:', item);
+    // מציאת המוצר בעגלה
+    let itemIndex = window.basket.findIndex(x => x.id === id);
+    
+    if (itemIndex === -1) {
+        // אם המוצר לא קיים בעגלה, נוסיף אותו
+        window.basket.push({
+            id: id,
+            item: 1
+        });
     } else {
-        item.item++;
-        console.log('עדכון כמות למוצר קיים:', item);
+        // אם המוצר קיים, נעדכן את הכמות
+        window.basket[itemIndex].item += 1;
     }
     
-    // עדכון התצוגה מיד
-    const quantityDisplay = document.getElementById(id);
-    if (quantityDisplay) {
-        quantityDisplay.textContent = item.item;
-    }
-    
-    console.log('מצב העגלה לפני updateCart:', basket);
+    console.log('מצב העגלה אחרי increment:', window.basket);
     await updateCart();
-    
-    // עדכון נוסף של התצוגה אחרי העדכון בשרת
-    updateQuantityDisplay();
+    update(id);
   };
 
   // Decrement item quantity
-  let decrement = async (id) => {
+  window.decrement = async (id) => {
     console.log('מתחיל decrement עבור מוצר:', id);
     id = id.toString();
-    let item = basketMap.get(id);
     
-    if (!item || item.item === 0) return;
+    // מציאת המוצר בעגלה
+    let itemIndex = window.basket.findIndex(x => x.id === id);
     
-    item.item--;
-    console.log('הפחתת כמות למוצר:', item);
+    if (itemIndex === -1) return; // אם המוצר לא קיים בעגלה, נצא
     
-    // עדכון התצוגה מיד
-    const quantityDisplay = document.getElementById(id);
-    if (quantityDisplay) {
-        quantityDisplay.textContent = item.item;
+    // אם הכמות היא 1, נסיר את המוצר מהעגלה
+    if (window.basket[itemIndex].item === 1) {
+        window.basket = window.basket.filter(x => x.id !== id);
+    } else {
+        // אחרת, נפחית את הכמות ב-1
+        window.basket[itemIndex].item -= 1;
     }
     
-    if (item.item === 0) {
-        basketMap.delete(id);
-        basket = basket.filter(x => x.id !== id);
-        console.log('הסרת מוצר מהעגלה:', id);
-    }
-    
-    console.log('מצב העגלה לפני updateCart:', basket);
+    console.log('מצב העגלה אחרי decrement:', window.basket);
     await updateCart();
-    
-    // עדכון נוסף של התצוגה אחרי העדכון בשרת
-    updateQuantityDisplay();
+    update(id);
   };
 
-  function updateQuantityDisplay() {
-    // קודם נאפס את כל התצוגות
-    document.querySelectorAll('.quantity').forEach(display => {
-      display.textContent = '0';
-    });
+  // Update item quantity display
+  window.update = (id) => {
+    let search = window.basket.find((x) => x.id === id);
+    const quantityElement = document.getElementById(id);
+    if (quantityElement) {
+        quantityElement.textContent = search ? search.item : 0;
+    }
 
-    // עכשיו נעדכן רק את המוצרים שבסל
-    basketMap.forEach((item, id) => {
-      const quantityDisplay = document.getElementById(id);
-      if (quantityDisplay) {
-        quantityDisplay.textContent = item.item;
-      }
-    });
-    calculation();
-  }
+    // עדכון רק של המחיר הכולל בלי לגעת בכפתורים
+    const totalPrice = window.basket.reduce((total, item) => {
+        const product = shopItems.find(p => p.id === item.id);
+        return total + (product ? product.price * item.item : 0);
+    }, 0);
 
-  function calculation() {
+    const label = document.getElementById("label");
+    if (label) {
+        const priceElement = label.querySelector('h2');
+        if (priceElement) {
+            priceElement.textContent = `מחיר כולל: ${totalPrice}₪`;
+        }
+    }
+
+    // עדכון כמות בסמל העגלה
     const cartIcon = document.getElementById("cartAmount");
     if (cartIcon) {
-      const total = Array.from(basketMap.values())
-        .reduce((sum, item) => sum + item.item, 0);
-      cartIcon.textContent = total;
+        const total = window.basket.reduce((sum, item) => sum + (item.item || 0), 0);
+        cartIcon.textContent = total;
     }
-  }
+};
 
   // פונקציה לטעינת מוצרים עם debounce
   async function fetchProducts() {
@@ -268,11 +267,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
-      const products = await Product.fetchProductsFromServer();
+      const response = await fetch("http://localhost:3000/api/products");
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const products = await response.json();
+      console.log('מוצרים מהשרת:', products);
+
+      // שמירה במטמון
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: Date.now(),
         products
       }));
+      
       return products;
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -287,7 +292,20 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const products = await fetchProducts();
       shopItems.length = 0;
-      products.forEach(product => Product.addProductToShopItems(product));
+      products.forEach(product => {
+        const item = {
+          id: product.id.toString(),
+          name: product.name,
+          price: product.price,
+          description: product.description || '',
+          img: product.image || imgPath,
+          category: product.category || "לא מסווג",
+          volume: product.volume || "N/A",
+          shelfLife: product.shelfLife || "לא ידוע",
+          storage: product.storage || "N/A",
+        };
+        shopItems.push(item);
+      });
       if (shop) {
         await generateShop();
         updateQuantityDisplay();
@@ -317,44 +335,45 @@ document.addEventListener('DOMContentLoaded', function() {
     const fragment = document.createDocumentFragment();
     
     shopItems.forEach((x) => {
-      const { id, name, price, description, img, shelfLife, storage, volume } = x;
-      const search = basketMap.get(id) || { item: 0 };
-      
-      const itemDiv = document.createElement('div');
-      itemDiv.id = `product-id-${id}`;
-      itemDiv.className = 'item';
-      itemDiv.style.position = 'relative';
-      
-      itemDiv.innerHTML = `
-        <img width="235" src="${img || '/images/default.jpg'}" alt="${name}">
-        <div class="info-icon" data-id="${id}" style="text-align: center; margin: 10px 0;">
-          <i class="bi bi-info-circle"></i>
-          <div class="info-content">
-            <p><strong>תוקף:</strong> ${shelfLife || '-'}</p>
-            <p><strong>אחסון:</strong> ${storage || '-'}</p>
-            <p><strong>כמות:</strong> ${volume || '-'}</p>
-          </div>
-        </div>
-        <div class="details">
-          <h3>${name}</h3>
-          <p>${description || 'אין תיאור זמין'}</p>
-          <div class="price">
-            <h2>${price}₪</h2>
-            <div class="buttons">
-              <i class="bi bi-plus-lg increment" data-id="${id}"></i>
-              <div id="${id}" class="quantity">${search.item}</div>
-              <i class="bi bi-dash-lg decrement" data-id="${id}"></i>
+        const { id, name, price, description, img, shelfLife, storage, volume } = x;
+        const search = window.basket.find(item => item.id === id) || { item: 0 };
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.id = `product-id-${id}`;
+        itemDiv.className = 'item';
+        itemDiv.style.position = 'relative';
+        
+        itemDiv.innerHTML = `
+            <img width="235" src="${img || 'https://www.dropbox.com/scl/fi/2g3fexz0my5hraoo0qvnq/house.png?rlkey=4tr7zrib6i9o3uglvot4hcswt&raw=1'}" alt="${name}">
+            <div class="info-icon" data-id="${id}" style="text-align: center; margin: 10px 0;">
+                <i class="bi bi-info-circle"></i>
+                <div class="info-content">
+                    <p><strong>תוקף:</strong> ${shelfLife || '-'}</p>
+                    <p><strong>אחסון:</strong> ${storage || '-'}</p>
+                    <p><strong>כמות:</strong> ${volume || '-'}</p>
+                </div>
             </div>
-          </div>
-        </div>
-      `;
-      
-      fragment.appendChild(itemDiv);
+            <div class="details">
+                <h3>${name}</h3>
+                <p>${description || 'אין תיאור זמין'}</p>
+                <div class="price">
+                    <h2>${price}₪</h2>
+                    <div class="buttons">
+                        <i class="bi bi-plus-lg increment" data-id="${id}"></i>
+                        <div id="${id}" class="quantity">${search.item}</div>
+                        <i class="bi bi-dash-lg decrement" data-id="${id}"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        fragment.appendChild(itemDiv);
     });
 
     shop.innerHTML = '';
     shop.appendChild(fragment);
-  updateQuantityDisplay();
+    updateTotalPrice();
+    updateQuantityDisplay();
   }
 
   // Event Delegation משופר
@@ -494,4 +513,21 @@ function showErrorMessage(message) {
     setTimeout(() => {
         messageElement.remove();
     }, 3000);
+}
+
+// פונקציה לעדכון תצוגת הכמויות
+function updateQuantityDisplay() {
+    // קודם נאפס את כל התצוגות
+    document.querySelectorAll('.quantity').forEach(display => {
+        display.textContent = '0';
+    });
+
+    // עכשיו נעדכן רק את המוצרים שבסל
+    window.basket.forEach(item => {
+        const quantityDisplay = document.getElementById(item.id);
+        if (quantityDisplay) {
+            quantityDisplay.textContent = item.item;
+        }
+    });
+    calculation();
 }

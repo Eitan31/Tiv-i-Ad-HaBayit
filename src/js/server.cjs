@@ -8,6 +8,17 @@ const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
+// הוספת תמיכה ב-CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
 // הגדרת חיבור לבסיס הנתונים
 const connection = mysql.createPool({
   host: 'Eitan',
@@ -159,14 +170,71 @@ app.post('/api/users', async (req, res) => {
   }
 
   const id = uuidv4();
-  const location = encodeURIComponent(`${address} ${city}`);
-  const maps = `https://goo.gl/maps?q=${location}`;
-  const waze = `https://waz.li/${location}`;
+  const location = encodeURIComponent(`${address}, ${city}, ישראל`);
+  const maps = `https://www.google.com/maps/search/?api=1&query=${location}`;
+  const waze = `https://waze.com/ul?q=${location}&navigate=yes`;
 
-  // טיפול ב-notes ו-admin_notes
-  let processedNotes = Array.isArray(notes) ? JSON.stringify(notes) : JSON.stringify([]);
-  let processedAdminNotes = Array.isArray(admin_notes) ? JSON.stringify(admin_notes) : JSON.stringify([]);
-  let processedCart = Array.isArray(cart) ? JSON.stringify(cart) : JSON.stringify([]);
+  // טיפול בהערות ו-JSON
+  let processedNotes = notes;
+  let processedAdminNotes = admin_notes;
+  let processedCart = cart;
+  let processedPurchases = purchases;
+
+  // טיפול בהערות
+  if (Array.isArray(notes)) {
+    processedNotes = JSON.stringify(notes);
+  } else if (typeof notes === 'string') {
+    try {
+      JSON.parse(notes);
+      processedNotes = notes;
+    } catch (e) {
+      processedNotes = '[]';
+    }
+  } else {
+    processedNotes = '[]';
+  }
+
+  // טיפול בהערות מנהל
+  if (Array.isArray(admin_notes)) {
+    processedAdminNotes = JSON.stringify(admin_notes);
+  } else if (typeof admin_notes === 'string') {
+    try {
+      JSON.parse(admin_notes);
+      processedAdminNotes = admin_notes;
+    } catch (e) {
+      processedAdminNotes = '[]';
+    }
+  } else {
+    processedAdminNotes = '[]';
+  }
+
+  // טיפול בעגלה
+  if (Array.isArray(cart)) {
+    processedCart = JSON.stringify(cart);
+  } else if (typeof cart === 'string') {
+    try {
+      JSON.parse(cart);
+      processedCart = cart;
+    } catch (e) {
+      processedCart = '[]';
+    }
+  } else {
+    processedCart = '[]';
+  }
+
+  // טיפול ברכישות
+  if (Array.isArray(purchases)) {
+    processedPurchases = JSON.stringify(purchases);
+  } else if (typeof purchases === 'string') {
+    try {
+      JSON.parse(purchases);
+      processedPurchases = purchases;
+    } catch (e) {
+      processedPurchases = '[]';
+    }
+  } else {
+    processedPurchases = '[]';
+  }
 
   console.log('Processing notes:', { notes, admin_notes, processedNotes, processedAdminNotes }); // לוג לבדיקה
 
@@ -179,7 +247,7 @@ app.post('/api/users', async (req, res) => {
         processedNotes,
         processedAdminNotes,
         processedCart,
-        JSON.stringify(purchases || []),
+        processedPurchases,
         password || phone, maps, waze,
         code || '',
         debt_balance || 0
@@ -225,108 +293,173 @@ app.delete('/api/users/:id', async (req, res) => {
 
 // עדכון פרטי משתמש
 app.put('/api/users/:id', async (req, res) => {
-    const { id } = req.params;
     try {
-        // בדיקה שהמשתמש קיים
-        const [existingUser] = await connection.execute(
-            'SELECT * FROM users WHERE id = ?',
-            [id]
-        );
-
-        if (existingUser.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
+        const userId = req.params.id;
+        console.log('Updating user with ID:', userId);
+        console.log('Request body:', req.body);
+        
+        // קבלת נתוני המשתמש הקיימים
+        const [existingUser] = await connection.query('SELECT * FROM users WHERE id = ?', [userId]);
+        if (!existingUser || existingUser.length === 0) {
+            console.log('User not found:', userId);
+            return res.status(404).json({ error: 'משתמש לא נמצא' });
         }
 
-        const { name, phone, address, city, position, notes, admin_notes, password, code, debt_balance, cart } = req.body;
+        const currentUser = existingUser[0];
+        const updatedData = req.body;
 
-        // טיפול ב-notes ו-admin_notes
-        let processedNotes = notes;
-        if (Array.isArray(notes)) {
-            processedNotes = JSON.stringify(notes);
-        } else if (typeof notes === 'string') {
+        console.log('Current user data:', currentUser);
+        console.log('Updated data received:', updatedData);
+
+        // אם מעדכנים רק את העגלה
+        if (Object.keys(updatedData).length === 1 && updatedData.cart !== undefined) {
             try {
-                JSON.parse(notes);
-                processedNotes = notes;
+                const processedCart = Array.isArray(updatedData.cart) ? 
+                    JSON.stringify(updatedData.cart) : 
+                    (typeof updatedData.cart === 'string' ? updatedData.cart : '[]');
+
+                console.log('Updating cart with:', processedCart);
+
+                await connection.query(`
+                    UPDATE users 
+                    SET 
+                        name = ?,
+                        phone = ?,
+                        address = ?,
+                        city = ?,
+                        position = ?,
+                        password = ?,
+                        code = ?,
+                        debt_balance = ?,
+                        notes = ?,
+                        admin_notes = ?,
+                        cart = ?,
+                        purchases = ?,
+                        maps = ?,
+                        waze = ?
+                    WHERE id = ?
+                `, [
+                    updatedData.name || currentUser.name,
+                    updatedData.phone || currentUser.phone,
+                    updatedData.address || currentUser.address,
+                    updatedData.city || currentUser.city,
+                    updatedData.position || currentUser.position || 0,
+                    updatedData.password || currentUser.password,
+                    updatedData.code || currentUser.code || '',
+                    updatedData.debt_balance !== undefined && updatedData.debt_balance !== '' ? parseFloat(updatedData.debt_balance) : (parseFloat(currentUser.debt_balance) || 0),
+                    typeof updatedData.notes === 'string' ? updatedData.notes : 
+                          (Array.isArray(updatedData.notes) ? JSON.stringify(updatedData.notes) : 
+                          (currentUser.notes || '[]')),
+                    typeof updatedData.admin_notes === 'string' ? updatedData.admin_notes :
+                                (Array.isArray(updatedData.admin_notes) ? JSON.stringify(updatedData.admin_notes) :
+                                (currentUser.admin_notes || '[]')),
+                    typeof updatedData.cart === 'string' ? updatedData.cart :
+                          (Array.isArray(updatedData.cart) ? JSON.stringify(updatedData.cart) :
+                          (currentUser.cart || '[]')),
+                    typeof updatedData.purchases === 'string' ? updatedData.purchases :
+                              (Array.isArray(updatedData.purchases) ? JSON.stringify(updatedData.purchases) :
+                              (currentUser.purchases || '[]')),
+                    updatedData.maps || currentUser.maps || '',
+                    updatedData.waze || currentUser.waze || '',
+                    userId
+                ]);
+
+                const [updatedUser] = await connection.query('SELECT * FROM users WHERE id = ?', [userId]);
+                console.log('Updated user:', updatedUser[0]);
+                return res.json(updatedUser[0]);
             } catch (e) {
-                processedNotes = '[]';
+                console.error('Error processing cart:', e);
+                return res.status(400).json({ 
+                    error: 'שגיאה בעדכון העגלה',
+                    details: e.message
+                });
             }
-        } else {
-            processedNotes = '[]';
         }
 
-        let processedAdminNotes = admin_notes;
-        if (Array.isArray(admin_notes)) {
-            processedAdminNotes = JSON.stringify(admin_notes);
-        } else if (typeof admin_notes === 'string') {
-            try {
-                JSON.parse(admin_notes);
-                processedAdminNotes = admin_notes;
-            } catch (e) {
-                processedAdminNotes = '[]';
-            }
-        } else {
-            processedAdminNotes = '[]';
-        }
+        // עיבוד שדות JSON
+        const processedData = {
+            name: updatedData.name ?? currentUser.name,
+            phone: updatedData.phone ?? currentUser.phone,
+            address: updatedData.address ?? currentUser.address,
+            city: updatedData.city ?? currentUser.city,
+            position: updatedData.position ?? currentUser.position ?? 0,
+            password: updatedData.password ?? currentUser.password,
+            code: updatedData.code ?? currentUser.code ?? '',
+            debt_balance: updatedData.debt_balance !== undefined && updatedData.debt_balance !== '' ? parseFloat(updatedData.debt_balance) : (parseFloat(currentUser.debt_balance) || 0),
+            notes: typeof updatedData.notes === 'string' ? updatedData.notes : 
+                  (Array.isArray(updatedData.notes) ? JSON.stringify(updatedData.notes) : 
+                  (currentUser.notes || '[]')),
+            admin_notes: typeof updatedData.admin_notes === 'string' ? updatedData.admin_notes :
+                        (Array.isArray(updatedData.admin_notes) ? JSON.stringify(updatedData.admin_notes) :
+                        (currentUser.admin_notes || '[]')),
+            cart: typeof updatedData.cart === 'string' ? updatedData.cart :
+                  (Array.isArray(updatedData.cart) ? JSON.stringify(updatedData.cart) :
+                  (currentUser.cart || '[]')),
+            purchases: typeof updatedData.purchases === 'string' ? updatedData.purchases :
+                      (Array.isArray(updatedData.purchases) ? JSON.stringify(updatedData.purchases) :
+                      (currentUser.purchases || '[]')),
+            maps: updatedData.maps ?? currentUser.maps ?? '',
+            waze: updatedData.waze ?? currentUser.waze ?? ''
+        };
 
-        // טיפול בעגלה
-        let processedCart = cart;
-        if (Array.isArray(cart)) {
-            processedCart = JSON.stringify(cart);
-        } else if (typeof cart === 'string') {
-            try {
-                JSON.parse(cart);
-                processedCart = cart;
-            } catch (e) {
-                processedCart = '[]';
-            }
-        } else {
-            processedCart = '[]';
-        }
+        console.log('Processed data for update:', processedData);
 
-        // עדכון המשתמש
-        await connection.execute(
-            `UPDATE users 
-             SET name = ?, 
-                 phone = ?, 
-                 address = ?, 
-                 city = ?, 
-                 position = ?, 
-                 notes = ?, 
-                 admin_notes = ?,
-                 password = ?, 
-                 code = ?, 
-                 debt_balance = ?,
-                 cart = ?
-             WHERE id = ?`,
-            [
-                name, 
-                phone, 
-                address, 
-                city, 
-                position || 0, 
-                processedNotes,
-                processedAdminNotes, 
-                password || phone, 
-                code || '', 
-                debt_balance || 0, 
-                processedCart,
-                id
-            ]
-        );
+        // עדכון הנתונים בדאטהבייס
+        await connection.query(`
+            UPDATE users 
+            SET 
+                name = ?,
+                phone = ?,
+                address = ?,
+                city = ?,
+                position = ?,
+                password = ?,
+                code = ?,
+                debt_balance = ?,
+                notes = ?,
+                admin_notes = ?,
+                cart = ?,
+                purchases = ?,
+                maps = ?,
+                waze = ?
+            WHERE id = ?
+        `, [
+            processedData.name || currentUser.name,
+            processedData.phone || currentUser.phone,
+            processedData.address || currentUser.address,
+            processedData.city || currentUser.city,
+            processedData.position || currentUser.position || 0,
+            processedData.password || currentUser.password,
+            processedData.code || currentUser.code || '',
+            processedData.debt_balance !== undefined && processedData.debt_balance !== '' ? parseFloat(processedData.debt_balance) : (parseFloat(currentUser.debt_balance) || 0),
+            typeof processedData.notes === 'string' ? processedData.notes : 
+                  (Array.isArray(processedData.notes) ? JSON.stringify(processedData.notes) : 
+                  (currentUser.notes || '[]')),
+            typeof processedData.admin_notes === 'string' ? processedData.admin_notes :
+                        (Array.isArray(processedData.admin_notes) ? JSON.stringify(processedData.admin_notes) :
+                        (currentUser.admin_notes || '[]')),
+            typeof processedData.cart === 'string' ? processedData.cart :
+                  (Array.isArray(processedData.cart) ? JSON.stringify(processedData.cart) :
+                  (currentUser.cart || '[]')),
+            typeof processedData.purchases === 'string' ? processedData.purchases :
+                      (Array.isArray(processedData.purchases) ? JSON.stringify(processedData.purchases) :
+                      (currentUser.purchases || '[]')),
+            processedData.maps || currentUser.maps || '',
+            processedData.waze || currentUser.waze || '',
+            userId
+        ]);
 
-        // קבלת המשתמש המעודכן
-        const [updatedUser] = await connection.execute(
-            'SELECT * FROM users WHERE id = ?',
-            [id]
-        );
-
+        // החזרת הנתונים המעודכנים
+        const [updatedUser] = await connection.query('SELECT * FROM users WHERE id = ?', [userId]);
+        console.log('Final updated user:', updatedUser[0]);
         res.json(updatedUser[0]);
+
     } catch (error) {
         console.error('Error updating user:', error);
         res.status(500).json({ 
-            error: 'Error updating user',
+            error: 'שגיאה בעדכון המשתמש', 
             details: error.message,
-            stack: error.stack 
+            sqlError: error.sqlMessage
         });
     }
 });
@@ -402,55 +535,215 @@ app.get('/admin', (req, res) => {
 // קבלת כל ההזמנות
 app.get('/api/orders', async (req, res) => {
     try {
-        // בדיקה אם הטבלה קיימת
-        const [tables] = await connection.query('SHOW TABLES LIKE "orders"');
-        if (tables.length === 0) {
-            // אם הטבלה לא קיימת, ניצור אותה
-            await connection.query(`
-                CREATE TABLE IF NOT EXISTS orders (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    customerName VARCHAR(255) NOT NULL,
-                    items TEXT NOT NULL,
-                    totalAmount DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'חדשה',
-                    orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    phone VARCHAR(20),
-                    address VARCHAR(255),
-                    notes TEXT
-                )
-            `);
-            // נחזיר מערך ריק אם הטבלה נוצרה עכשיו
-            return res.json([]);
+        const userId = req.query.userId;
+
+        // בניית שאילתת ה-SQL
+        let ordersQuery = 'SELECT * FROM orders';
+        let queryParams = [];
+
+        // מחזירים רק את ההזמנות של המשתמש הספציפי
+        if (userId) {
+            ordersQuery += ' WHERE customerId = ?';
+            queryParams.push(userId);
         }
 
-        const [orders] = await connection.query('SELECT * FROM orders');
-        const formattedOrders = orders.map(order => ({
-            ...order,
-            items: JSON.parse(order.items || '[]')
-        }));
-        res.json(formattedOrders);
+        ordersQuery += ' ORDER BY orderDate DESC';
+
+        // שליפת ההזמנות
+        const [orders] = await connection.query(ordersQuery, queryParams);
+        
+        // שליפת כל המשתמשים
+        const [users] = await connection.query('SELECT * FROM users');
+        
+        // יצירת מפה של משתמשים לפי ID
+        const usersMap = {};
+        users.forEach(user => {
+            usersMap[user.id] = user;
+        });
+
+        // שליפת כל המוצרים
+        const [products] = await connection.query('SELECT * FROM products');
+        
+        // יצירת מפה של מוצרים לפי ID
+        const productsMap = {};
+        products.forEach(product => {
+            productsMap[product.id] = product;
+        });
+
+        // עיבוד התוצאות
+        const processedOrders = orders.map(order => {
+            // קבלת פרטי המשתמש
+            const user = usersMap[order.customerId];
+            
+            // המרת מחרוזת JSON למערך של פריטים
+            let orderItems = [];
+            try {
+                // בדיקה אם items הוא כבר אובייקט
+                if (typeof order.items === 'object' && !Array.isArray(order.items)) {
+                    orderItems = [order.items];
+                } else if (Array.isArray(order.items)) {
+                    orderItems = order.items;
+                } else {
+                    orderItems = JSON.parse(order.items || '[]');
+                }
+
+                // הוספת פרטי מוצר מלאים לכל פריט
+                orderItems = orderItems.map(item => {
+                    const product = productsMap[item.id];
+                    if (product) {
+                        return {
+                            ...item,
+                            name: product.name,
+                            price: product.price,
+                            description: product.description,
+                            img: product.img,
+                            shelfLife: product.shelfLife,
+                            storage: product.storage,
+                            volume: product.volume
+                        };
+                    }
+                    return item;
+                });
+            } catch (e) {
+                console.error(`Error parsing items for order ${order.id}:`, e);
+                return null;
+            }
+
+            return {
+                id: order.id,
+                customer: user ? {
+                    id: user.id,
+                    name: user.name,
+                    phone: user.phone,
+                    address: user.address,
+                    city: user.city
+                } : {
+                    id: order.customerId,
+                    name: 'לקוח לא נמצא',
+                    phone: '',
+                    address: '',
+                    city: ''
+                },
+                items: orderItems,
+                totalAmount: order.totalAmount || 0,
+                status: order.status || 'בטיפול',
+                orderDate: order.orderDate,
+                notes: order.notes || ''
+            };
+        }).filter(order => order !== null);
+
+        res.json(processedOrders);
     } catch (error) {
         console.error('Error fetching orders:', error);
-        res.status(500).json({ 
-            error: 'Internal server error', 
-            details: error.message,
-            stack: error.stack 
-        });
+        res.status(500).json({ error: 'שגיאה בטעינת ההזמנות', details: error.message });
     }
 });
 
-// הוספת הזמנה חדשה
+// יצירת הזמנה חדשה
 app.post('/api/orders', async (req, res) => {
     try {
-        const { customerName, items, totalAmount, status = 'חדשה', phone, address, notes } = req.body;
-        const [result] = await connection.query(
-            'INSERT INTO orders (customerName, items, totalAmount, status, phone, address, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [customerName, JSON.stringify(items), totalAmount, status, phone || null, address || null, notes || null]
+        const { customerId, items, totalAmount } = req.body;
+
+        // בדיקת תקינות הנתונים
+        if (!customerId || !items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'נתונים חסרים או לא תקינים' });
+        }
+
+        // בדיקה שהמשתמש קיים
+        const [userRows] = await connection.query('SELECT * FROM users WHERE id = ?', [customerId]);
+        if (!userRows || userRows.length === 0) {
+            return res.status(404).json({ error: 'משתמש לא נמצא' });
+        }
+        const user = userRows[0];
+
+        // יצירת תאריך בפורמט MySQL
+        const now = new Date();
+        const orderDate = now.toISOString().slice(0, 19).replace('T', ' ');
+
+        // הכנסת ההזמנה לדאטהבייס
+        const [orderResult] = await connection.query(
+            'INSERT INTO orders (customerId, items, totalAmount, status, orderDate) VALUES (?, ?, ?, ?, ?)',
+            [customerId, JSON.stringify(items), totalAmount, 'בטיפול', orderDate]
         );
-        res.status(201).json({ id: result.insertId });
+
+        // עדכון הרכישות של המשתמש
+        let purchases = [];
+        try {
+            if (user.purchases) {
+                purchases = typeof user.purchases === 'string' ? 
+                    JSON.parse(user.purchases) : user.purchases;
+            }
+        } catch (e) {
+            console.error('Error parsing existing purchases:', e);
+            purchases = [];
+        }
+
+        // הוספת ההזמנה החדשה לרכישות
+        const newPurchase = {
+            id: orderResult.insertId,
+            date: orderDate,
+            items: items,
+            total: totalAmount,
+            status: 'בטיפול'
+        };
+        purchases.push(newPurchase);
+
+        // עדכון המשתמש בדאטהבייס
+        await connection.query(
+            'UPDATE users SET purchases = ?, cart = ?, debt_balance = debt_balance + ? WHERE id = ?',
+            [
+                JSON.stringify(purchases),
+                '[]',  // ניקוי העגלה
+                totalAmount,
+                customerId
+            ]
+        );
+
+        // שליפת ההזמנה שנוצרה
+        const [newOrder] = await connection.query(
+            'SELECT * FROM orders WHERE id = ?',
+            [orderResult.insertId]
+        );
+
+        res.status(201).json({
+            order: {
+                ...newOrder[0],
+                customer: {
+                    id: user.id,
+                    name: user.name,
+                    phone: user.phone,
+                    address: user.address,
+                    city: user.city
+                }
+            },
+            message: 'ההזמנה נוצרה בהצלחה'
+        });
+
     } catch (error) {
-        console.error('Error adding order:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error creating order:', error);
+        res.status(500).json({ error: 'שגיאה ביצירת ההזמנה', details: error.message });
+    }
+});
+
+// עדכון סטטוס הזמנה
+app.put('/api/orders/:orderId/status', async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { status } = req.body;
+
+        if (!status || !['בטיפול', 'אושרה', 'בוטלה'].includes(status)) {
+            return res.status(400).json({ error: 'סטטוס לא תקין' });
+        }
+
+        await connection.query(
+            'UPDATE orders SET status = ? WHERE id = ?',
+            [status, orderId]
+        );
+
+        res.json({ message: 'סטטוס ההזמנה עודכן בהצלחה' });
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({ error: 'שגיאה בעדכון סטטוס ההזמנה' });
     }
 });
 
@@ -469,16 +762,92 @@ app.delete('/api/orders/:id', async (req, res) => {
 // עדכון הזמנה
 app.put('/api/orders/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { customerName, items, totalAmount, status } = req.body;
-        await connection.query(
-            'UPDATE orders SET customerName=?, items=?, totalAmount=?, status=? WHERE id=?',
-            [customerName, JSON.stringify(items), totalAmount, status, id]
+        const { customerId, items, totalAmount, status } = req.body;
+        
+        // וידוא שה-items הוא מערך של מזהי מוצרים
+        let itemIds = items;
+        if (typeof items === 'string') {
+            itemIds = JSON.parse(items);
+        }
+        
+        // בדיקה שההזמנה קיימת
+        const [existingOrder] = await connection.query(
+            'SELECT * FROM orders WHERE id = ?',
+            [req.params.id]
         );
-        res.json({ message: 'Order updated successfully' });
+
+        if (existingOrder.length === 0) {
+            return res.status(404).json({ 
+                error: 'הזמנה לא נמצאה',
+                orderId: req.params.id
+            });
+        }
+
+        // בדיקה שכל המוצרים קיימים
+        const [products] = await connection.query(
+            'SELECT * FROM products WHERE id IN (?)',
+            [itemIds]
+        );
+
+        if (products.length !== itemIds.length) {
+            return res.status(400).json({ 
+                error: 'חלק מהמוצרים לא נמצאו במערכת',
+                missingProducts: itemIds.filter(id => !products.find(p => p.id === id))
+            });
+        }
+
+        // בדיקה שהמשתמש קיים
+        const [users] = await connection.query(
+            'SELECT * FROM users WHERE id = ?',
+            [customerId]
+        );
+
+        if (users.length === 0) {
+            return res.status(400).json({ 
+                error: 'משתמש לא נמצא',
+                customerId
+            });
+        }
+
+        // שמירת מזהי המוצרים כ-JSON
+        const itemsJson = JSON.stringify(itemIds);
+
+        await connection.query(
+            'UPDATE orders SET customerId = ?, items = ?, totalAmount = ?, status = ? WHERE id = ?',
+            [customerId, itemsJson, totalAmount, status, req.params.id]
+        );
+
+        // יצירת תשובה עם כל הפרטים
+        const processedOrder = {
+            id: parseInt(req.params.id),
+            customer: {
+                id: users[0].id,
+                name: users[0].name,
+                phone: users[0].phone,
+                address: users[0].address,
+                city: users[0].city
+            },
+            items: products.map(product => ({
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                category: product.category,
+                image: product.image,
+                description: product.description,
+                volume: product.volume,
+                storage: product.storage,
+                shelfLife: product.shelfLife
+            })),
+            totalAmount,
+            status,
+            orderDate: existingOrder[0].orderDate,
+            notes: existingOrder[0].notes || ''
+        };
+
+        res.json(processedOrder);
     } catch (error) {
         console.error('Error updating order:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'שגיאה בעדכון ההזמנה' });
     }
 });
 
@@ -538,131 +907,457 @@ app.get('/api/users/stats', async (req, res) => {
     }
 });
 
-// קבלת משתמש ספציפי לפי ID
-app.get('/api/users/:id', async (req, res) => {
-    const { id } = req.params;
+// עדכון מבנה טבלת הזמנות
+app.get('/api/setup/update-orders', async (req, res) => {
     try {
-        const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [id]);
+        // בדיקת מבנה הטבלה הנוכחי
+        const [columns] = await connection.query('DESCRIBE orders');
+        const hasCustomerId = columns.some(col => col.Field === 'customerId');
         
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
+        if (!hasCustomerId) {
+            // גיבוי הטבלה הישנה
+            await connection.query('CREATE TABLE orders_backup LIKE orders');
+            await connection.query('INSERT INTO orders_backup SELECT * FROM orders');
+            
+            // הוספת עמודת customerId
+            await connection.query('ALTER TABLE orders ADD COLUMN customerId CHAR(36)');
+            
+            // עדכון ה-customerId לפי שם הלקוח
+            await connection.query(`
+                UPDATE orders o
+                JOIN users u ON o.customerName = u.name
+                SET o.customerId = u.id
+            `);
+            
+            // הוספת מפתח זר
+            await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+            
+            // הסרת עמודות מיותרות
+            await connection.query('ALTER TABLE orders DROP COLUMN customerName');
+            await connection.query('ALTER TABLE orders DROP COLUMN phone');
+            await connection.query('ALTER TABLE orders DROP COLUMN address');
+            
+            res.json({ message: 'טבלת הזמנות עודכנה בהצלחה' });
+        } else {
+            res.json({ message: 'טבלת הזמנות כבר מעודכנת' });
         }
-        
-        res.json(rows[0]);
     } catch (error) {
-        console.error('Error fetching user:', error);
-        res.status(500).json({ error: 'Error fetching user' });
+        console.error('Error updating orders table:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// נתיב לבדיקת משתמש קיים
-app.post('/api/users/check', async (req, res) => {
-    const { name, phone } = req.body;
-    
+// נקודת קצה לבדיקה מפורטת
+app.get('/api/debug/check', async (req, res) => {
     try {
-        const [users] = await connection.query(
-            'SELECT * FROM users WHERE name = ? OR phone = ?',
-            [name, phone]
-        );
+        // בדיקת מבנה טבלת הזמנות
+        const [ordersStructure] = await connection.query('DESCRIBE orders');
         
-        res.json(users.length > 0);
-    } catch (error) {
-        console.error('Error checking user:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// נתיב להתחברות
-app.post('/api/users/login', async (req, res) => {
-    const { identifier, password } = req.body;
-    
-    try {
-        // הדפסת הפרמטרים שהתקבלו
-        console.log('Login attempt:', { identifier, password });
-
-        // בדיקה אם המשתמש קיים לפי שם או טלפון
-        const [usersCheck] = await connection.query(
-            'SELECT * FROM users WHERE name = ? OR phone = ?',
-            [identifier, identifier]
-        );
+        // בדיקת דוגמת הזמנה
+        const [orders] = await connection.query('SELECT * FROM orders LIMIT 1');
+        const sampleOrder = orders[0];
         
-        console.log('Users found by identifier:', usersCheck.length);
-        
-        if (usersCheck.length === 0) {
-            console.log('No user found with identifier:', identifier);
-            return res.status(401).json({ 
-                success: false, 
-                message: 'שם משתמש או סיסמה שגויים' 
-            });
-        }
-
-        // בדיקת הסיסמה
-        const [users] = await connection.query(
-            'SELECT * FROM users WHERE (name = ? OR phone = ?) AND password = ?',
-            [identifier, identifier, password]
-        );
-        
-        console.log('Users found with matching password:', users.length);
-        
-        if (users.length === 0) {
-            console.log('Password mismatch for user:', identifier);
-            return res.status(401).json({ 
-                success: false, 
-                message: 'שם משתמש או סיסמה שגויים' 
-            });
+        // בדיקת פרטי המשתמש של ההזמנה
+        let userDetails = null;
+        if (sampleOrder && sampleOrder.customerId) {
+            const [users] = await connection.query(
+                'SELECT * FROM users WHERE id = ?',
+                [sampleOrder.customerId]
+            );
+            userDetails = users[0];
         }
         
-        const user = users[0];
-        console.log('Found user:', { id: user.id, name: user.name, phone: user.phone }); // לוג של המשתמש שנמצא (ללא מידע רגיש)
-
-        // המרת הערות מ-JSON למערך אם צריך
-        let userNotes = user.notes;
-        try {
-            if (typeof user.notes === 'string') {
-                userNotes = JSON.parse(user.notes);
+        // בדיקת פרטי המוצרים של ההזמנה
+        let itemsDetails = null;
+        if (sampleOrder && sampleOrder.items) {
+            try {
+                const itemIds = JSON.parse(sampleOrder.items);
+                const [products] = await connection.query(
+                    'SELECT * FROM products WHERE id IN (?)',
+                    [itemIds]
+                );
+                itemsDetails = products;
+            } catch (e) {
+                itemsDetails = { error: e.message, items: sampleOrder.items };
             }
-        } catch (e) {
-            console.log('Error parsing notes:', e);
-            userNotes = user.notes || '';
         }
-
-        res.json({ 
-            success: true, 
-            user: {
-                id: user.id,
-                name: user.name,
-                phone: user.phone,
-                city: user.city,
-                address: user.address,
-                position: user.position,
-                notes: userNotes,
-                joinDate: user.joinDate,
-                debt: user.debt_balance || 0
+        
+        res.json({
+            ordersStructure,
+            sampleOrder,
+            userDetails,
+            itemsDetails,
+            debug: {
+                hasCustomerId: sampleOrder ? !!sampleOrder.customerId : false,
+                itemsFormat: sampleOrder ? typeof sampleOrder.items : null,
+                itemsParsed: sampleOrder ? (() => {
+                    try {
+                        return JSON.parse(sampleOrder.items);
+                    } catch (e) {
+                        return null;
+                    }
+                })() : null
             }
         });
     } catch (error) {
-        console.error('Error during login:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'שגיאה בהתחברות' 
-        });
+        console.error('Error checking data:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// קבלת משתמש ספציפי לפי ID
-app.get('/api/users/:id', async (req, res) => {
-    const { id } = req.params;
+// תיקון מבנה טבלת הזמנות
+app.get('/api/setup/fix-orders', async (req, res) => {
     try {
-        const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [id]);
-        
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
+        // בדיקת מבנה הטבלה הנוכחי
+        const [ordersStructure] = await connection.query('DESCRIBE orders');
+        console.log('Current orders table structure:', ordersStructure);
+
+        // יצירת טבלת גיבוי
+        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_fix LIKE orders');
+        await connection.query('INSERT INTO orders_backup_fix SELECT * FROM orders');
+        console.log('Created backup table');
+
+        // בדיקה אם צריך להוסיף עמודות
+        const hasCustomerId = ordersStructure.some(col => col.Field === 'customerId');
+        const hasItems = ordersStructure.some(col => col.Field === 'items');
+        const hasTotalAmount = ordersStructure.some(col => col.Field === 'totalAmount');
+        const hasStatus = ordersStructure.some(col => col.Field === 'status');
+        const hasOrderDate = ordersStructure.some(col => col.Field === 'orderDate');
+        const hasNotes = ordersStructure.some(col => col.Field === 'notes');
+
+        // מערך של פעולות שצריך לבצע
+        const actions = [];
+
+        if (!hasCustomerId) {
+            actions.push("ALTER TABLE orders ADD COLUMN customerId CHAR(36) NOT NULL AFTER id");
         }
+        if (!hasItems) {
+            actions.push("ALTER TABLE orders ADD COLUMN items TEXT NOT NULL AFTER customerId");
+        }
+        if (!hasTotalAmount) {
+            actions.push("ALTER TABLE orders ADD COLUMN totalAmount DECIMAL(10,2) NOT NULL AFTER items");
+        }
+        if (!hasStatus) {
+            actions.push("ALTER TABLE orders ADD COLUMN status VARCHAR(50) DEFAULT 'חדשה' AFTER totalAmount");
+        }
+        if (!hasOrderDate) {
+            actions.push("ALTER TABLE orders ADD COLUMN orderDate DATETIME DEFAULT CURRENT_TIMESTAMP AFTER status");
+        }
+        if (!hasNotes) {
+            actions.push("ALTER TABLE orders ADD COLUMN notes TEXT AFTER orderDate");
+        }
+
+        // ביצוע כל הפעולות הנדרשות
+        for (const action of actions) {
+            console.log('Executing:', action);
+            await connection.query(action);
+        }
+
+        // הוספת מפתח זר אם לא קיים
+        const [foreignKeys] = await connection.query('SHOW CREATE TABLE orders');
+        if (!foreignKeys[0]['Create Table'].includes('FOREIGN KEY (`customerId`) REFERENCES `users`')) {
+            try {
+                await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+                console.log('Added foreign key constraint');
+            } catch (e) {
+                console.error('Error adding foreign key:', e);
+            }
+        }
+
+        // בדיקת המבנה החדש
+        const [newStructure] = await connection.query('DESCRIBE orders');
         
-        res.json(rows[0]);
+        res.json({
+            message: 'טבלת ההזמנות תוקנה בהצלחה',
+            originalStructure: ordersStructure,
+            newStructure: newStructure,
+            actionsPerformed: actions
+        });
     } catch (error) {
-        console.error('Error fetching user:', error);
-        res.status(500).json({ error: 'Error fetching user' });
+        console.error('Error fixing orders table:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// תיקון טבלת הזמנות
+app.get('/api/setup/fix-orders-table', async (req, res) => {
+    try {
+        // יצירת גיבוי
+        console.log('Creating backup...');
+        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_fix2 LIKE orders');
+        await connection.query('INSERT INTO orders_backup_fix2 SELECT * FROM orders');
+
+        // בדיקת מבנה נוכחי
+        console.log('Checking current structure...');
+        const [currentStructure] = await connection.query('DESCRIBE orders');
+        console.log('Current structure:', currentStructure);
+
+        // יצירת טבלה חדשה
+        console.log('Creating new table structure...');
+        await connection.query(`
+            CREATE TABLE orders_new (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customerId CHAR(36) NOT NULL,
+                items TEXT NOT NULL,
+                totalAmount DECIMAL(10,2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'חדשה',
+                orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                FOREIGN KEY (customerId) REFERENCES users(id)
+            )
+        `);
+
+        // העתקת נתונים
+        console.log('Copying data...');
+        await connection.query(`
+            INSERT INTO orders_new (id, customerId, items, totalAmount, status, orderDate, notes)
+            SELECT id, customerId, items, totalAmount, status, orderDate, notes
+            FROM orders
+        `);
+
+        // החלפת טבלאות
+        console.log('Replacing tables...');
+        await connection.query('DROP TABLE orders');
+        await connection.query('RENAME TABLE orders_new TO orders');
+
+        // בדיקת מבנה חדש
+        console.log('Checking new structure...');
+        const [newStructure] = await connection.query('DESCRIBE orders');
+        
+        // בדיקת נתונים
+        console.log('Checking data...');
+        const [orders] = await connection.query('SELECT * FROM orders LIMIT 5');
+        const [invalidCustomers] = await connection.query(`
+            SELECT o.* 
+            FROM orders o 
+            LEFT JOIN users u ON o.customerId = u.id 
+            WHERE u.id IS NULL
+        `);
+        
+        res.json({
+            message: 'טבלת ההזמנות תוקנה בהצלחה',
+            newStructure,
+            sampleOrders: orders,
+            invalidCustomers: invalidCustomers,
+            status: {
+                backupCreated: true,
+                tableRecreated: true,
+                dataCopied: true
+            }
+        });
+    } catch (error) {
+        console.error('Error fixing orders table:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// עדכון מבנה טבלת הזמנות
+app.get('/api/setup/repair-orders', async (req, res) => {
+    try {
+        // יצירת גיבוי
+        console.log('Creating backup...');
+        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_repair LIKE orders');
+        await connection.query('INSERT INTO orders_backup_repair SELECT * FROM orders');
+
+        // בדיקת מבנה נוכחי
+        console.log('Checking current structure...');
+        const [currentStructure] = await connection.query('DESCRIBE orders');
+        console.log('Current structure:', currentStructure);
+
+        // יצירת טבלה חדשה
+        console.log('Creating new table...');
+        await connection.query(`DROP TABLE IF EXISTS orders_new`);
+        await connection.query(`
+            CREATE TABLE orders_new (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customerId CHAR(36),
+                items TEXT,
+                totalAmount DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'חדשה',
+                orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        `);
+
+        // העתקת נתונים
+        console.log('Copying data...');
+        const [orders] = await connection.query('SELECT * FROM orders');
+        
+        for (const order of orders) {
+            // בדיקת customerId
+            if (!order.customerId) {
+                console.log(`Missing customerId for order ${order.id}`);
+                continue;
+            }
+
+            // בדיקת קיום המשתמש
+            const [user] = await connection.query('SELECT id FROM users WHERE id = ?', [order.customerId]);
+            if (user.length === 0) {
+                console.log(`User not found for order ${order.id} (customerId: ${order.customerId})`);
+                continue;
+            }
+
+            // בדיקת תקינות items
+            let itemsJson = '[]';
+            try {
+                if (order.items) {
+                    const items = JSON.parse(order.items);
+                    if (Array.isArray(items)) {
+                        itemsJson = JSON.stringify(items);
+                    }
+                }
+            } catch (e) {
+                console.log(`Invalid items for order ${order.id}:`, e.message);
+            }
+
+            // הכנסת הנתונים לטבלה החדשה
+            await connection.query(`
+                INSERT INTO orders_new 
+                (id, customerId, items, totalAmount, status, orderDate, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+                order.id,
+                order.customerId,
+                itemsJson,
+                order.totalAmount || 0,
+                order.status || 'חדשה',
+                order.orderDate || new Date(),
+                order.notes || ''
+            ]);
+        }
+
+        // החלפת טבלאות
+        console.log('Replacing tables...');
+        await connection.query('DROP TABLE orders');
+        await connection.query('RENAME TABLE orders_new TO orders');
+
+        // הוספת מפתח זר
+        console.log('Adding foreign key...');
+        await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+
+        // בדיקת הנתונים החדשים
+        const [newOrders] = await connection.query(`
+            SELECT 
+                o.*,
+                u.name as customerName
+            FROM orders o
+            LEFT JOIN users u ON o.customerId = u.id
+            LIMIT 5
+        `);
+
+        res.json({
+            message: 'טבלת ההזמנות תוקנה בהצלחה',
+            ordersCount: orders.length,
+            sampleOrders: newOrders
+        });
+    } catch (error) {
+        console.error('Error repairing orders table:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// עדכון מבנה טבלת הזמנות
+app.get('/api/setup/repair-orders', async (req, res) => {
+    try {
+        // יצירת גיבוי
+        console.log('Creating backup...');
+        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_repair LIKE orders');
+        await connection.query('INSERT INTO orders_backup_repair SELECT * FROM orders');
+
+        // בדיקת מבנה נוכחי
+        console.log('Checking current structure...');
+        const [currentStructure] = await connection.query('DESCRIBE orders');
+        console.log('Current structure:', currentStructure);
+
+        // יצירת טבלה חדשה
+        console.log('Creating new table...');
+        await connection.query(`DROP TABLE IF EXISTS orders_new`);
+        await connection.query(`
+            CREATE TABLE orders_new (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customerId CHAR(36),
+                items TEXT,
+                totalAmount DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'חדשה',
+                orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        `);
+
+        // העתקת נתונים
+        console.log('Copying data...');
+        const [orders] = await connection.query('SELECT * FROM orders');
+        
+        for (const order of orders) {
+            // בדיקת customerId
+            if (!order.customerId) {
+                console.log(`Missing customerId for order ${order.id}`);
+                continue;
+            }
+
+            // בדיקת קיום המשתמש
+            const [user] = await connection.query('SELECT id FROM users WHERE id = ?', [order.customerId]);
+            if (user.length === 0) {
+                console.log(`User not found for order ${order.id} (customerId: ${order.customerId})`);
+                continue;
+            }
+
+            // בדיקת תקינות items
+            let itemsJson = '[]';
+            try {
+                if (order.items) {
+                    const items = JSON.parse(order.items);
+                    if (Array.isArray(items)) {
+                        itemsJson = JSON.stringify(items);
+                    }
+                }
+            } catch (e) {
+                console.log(`Invalid items for order ${order.id}:`, e.message);
+            }
+
+            // הכנסת הנתונים לטבלה החדשה
+            await connection.query(`
+                INSERT INTO orders_new 
+                (id, customerId, items, totalAmount, status, orderDate, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+                order.id,
+                order.customerId,
+                itemsJson,
+                order.totalAmount || 0,
+                order.status || 'חדשה',
+                order.orderDate || new Date(),
+                order.notes || ''
+            ]);
+        }
+
+        // החלפת טבלאות
+        console.log('Replacing tables...');
+        await connection.query('DROP TABLE orders');
+        await connection.query('RENAME TABLE orders_new TO orders');
+
+        // הוספת מפתח זר
+        console.log('Adding foreign key...');
+        await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+
+        // בדיקת הנתונים החדשים
+        const [newOrders] = await connection.query(`
+            SELECT 
+                o.*,
+                u.name as customerName
+            FROM orders o
+            LEFT JOIN users u ON o.customerId = u.id
+            LIMIT 5
+        `);
+
+        res.json({
+            message: 'טבלת ההזמנות תוקנה בהצלחה',
+            ordersCount: orders.length,
+            sampleOrders: newOrders
+        });
+    } catch (error) {
+        console.error('Error repairing orders table:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -700,25 +1395,41 @@ app.post('/api/admins', async (req, res) => {
     }
 });
 
-// נקודת קצה זמנית לבדיקת סיסמה
-app.get('/api/check-password/:phone', async (req, res) => {
+// קבלת משתמש ספציפי לפי ID
+app.get('/api/users/:id', async (req, res) => {
     try {
+        const { id } = req.params;
+        console.log('Looking for user with ID:', id);
+        
         const [users] = await connection.query(
-            'SELECT name, phone, password FROM users WHERE phone = ?',
-            [req.params.phone]
+            'SELECT * FROM users WHERE id = ?',
+            [id]
         );
-        if (users.length > 0) {
-            res.json({ user: users[0] });
-        } else {
-            res.status(404).json({ message: 'משתמש לא נמצא' });
+        
+        if (users.length === 0) {
+            console.log('User not found:', id);
+            return res.status(404).json({ error: 'משתמש לא נמצא' });
         }
+        
+        console.log('Found user:', users[0]);
+        res.json(users[0]);
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'שגיאה בטעינת פרטי משתמש' });
     }
 });
 
-// הפעלת השרת
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+// בדיקה אם הפורט תפוס
+const server = app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.log(`Port ${port} is busy, trying port ${port + 1}`);
+        app.listen(port + 1);
+    } else {
+        console.error('Server error:', err);
+    }
 });
+
+
+
