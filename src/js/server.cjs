@@ -25,6 +25,7 @@ const connection = mysql.createPool({
   user: process.env.DB_USER || 'Eitan',
   password: process.env.DB_PASSWORD || 'Eitan3187',
   database: process.env.DB_NAME || 'mystore',
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -33,8 +34,14 @@ const connection = mysql.createPool({
 // עדכון השדות maps ו-waze ל-TEXT
 (async () => {
   try {
+    console.log('נסיון התחברות לבסיס הנתונים עם הפרטים הבאים:');
+    console.log('Host:', process.env.DB_HOST);
+    console.log('User:', process.env.DB_USER);
+    console.log('Database:', process.env.DB_NAME);
+    console.log('Port:', process.env.DB_PORT);
+    
     const [result] = await connection.query('SELECT 1');
-    console.log('Connected to the database.');
+    console.log('Connected to the database successfully.');
 
     // בדיקה אם העמודה admin_notes קיימת
     const [columns] = await connection.query('SHOW COLUMNS FROM users LIKE "admin_notes"');
@@ -60,13 +67,20 @@ const connection = mysql.createPool({
     `);
     console.log('Updated table structure.');
   } catch (err) {
-    console.error('Error:', err);
+    console.error('Error connecting to database:', err);
+    console.error('Connection details:', {
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT
+    });
   }
 })();
 
 module.exports = { connection };
 
 // הוספת הגדרות סטטיות לקבצים
+app.use(express.static(path.join(__dirname, '../../')));
 app.use('/css', express.static(path.join(__dirname, '../css')));
 app.use('/js', express.static(path.join(__dirname, '../js')));
 app.use('/images', express.static(path.join(__dirname, '../../assets')));
