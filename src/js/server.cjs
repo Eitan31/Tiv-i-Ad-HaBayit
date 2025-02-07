@@ -80,10 +80,10 @@ const connection = mysql.createPool({
 module.exports = { connection };
 
 // הוספת הגדרות סטטיות לקבצים
-app.use(express.static(path.join(__dirname, '../../')));
+app.use(express.static(path.join(__dirname, '../')));
 app.use('/css', express.static(path.join(__dirname, '../css')));
 app.use('/js', express.static(path.join(__dirname, '../js')));
-app.use('/images', express.static(path.join(__dirname, '../../assets')));
+app.use('/images', express.static(path.join(__dirname, '../assets')));
 
 // קבלת כל המוצרים
 app.get('/api/products', async (req, res) => {
@@ -509,19 +509,24 @@ app.get('/api/users/debtors', async (req, res) => {
 
 // טעינת עמודים סטטיים
 app.get('/index.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../index.html'));
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../index.html'));
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 app.get('/cart.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../cart.html'));
+  res.sendFile(path.join(__dirname, '../cart.html'));
 });
 
 app.get('/admin.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../admin.html'));
+  res.sendFile(path.join(__dirname, '../admin.html'));
+});
+
+// הגדרת נתיב לדף האדמין
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin.html'));
 });
 
 // קבלת מוצר ספציפי לפי ID
@@ -539,11 +544,6 @@ app.get('/api/products/:id', async (req, res) => {
         console.error('Error fetching product:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-});
-
-// הגדרת נתיב לדף האדמין
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../admin.html'));
 });
 
 // קבלת כל ההזמנות
