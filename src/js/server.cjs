@@ -21,11 +21,11 @@ app.use((req, res, next) => {
 
 // הגדרת חיבור לבסיס הנתונים
 const connection = mysql.createPool({
-  host: process.env.DB_HOST || 'Eitan',
-  user: process.env.DB_USER || 'Eitan',
-  password: process.env.DB_PASSWORD || 'Eitan3187',
-  database: process.env.DB_NAME || 'mystore',
-  port: process.env.DB_PORT || 3306,
+  host: process.env.MYSQLHOST || process.env.DB_HOST || 'containers-us-west-207.railway.app',
+  user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || 'Eitan3187',
+  database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway',
+  port: process.env.MYSQLPORT || process.env.DB_PORT || 7012,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -43,10 +43,72 @@ const connection = mysql.createPool({
     const [result] = await connection.query('SELECT 1');
     console.log('Connected to the database successfully.');
 
+    // יצירת טבלת users אם לא קיימת
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id CHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        address TEXT NOT NULL,
+        city VARCHAR(100) NOT NULL,
+        position INT DEFAULT 0,
+        password VARCHAR(255),
+        code VARCHAR(50) DEFAULT '',
+        debt_balance DECIMAL(10,2) DEFAULT 0,
+        notes JSON DEFAULT NULL,
+        admin_notes JSON DEFAULT NULL,
+        cart JSON DEFAULT NULL,
+        purchases JSON DEFAULT NULL,
+        maps TEXT,
+        waze TEXT,
+        joinDate DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Users table checked/created.');
+
+    // יצירת טבלת products אם לא קיימת
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        category VARCHAR(100),
+        image TEXT,
+        description TEXT,
+        volume VARCHAR(50),
+        storage VARCHAR(100),
+        shelfLife VARCHAR(100)
+      )
+    `);
+    console.log('Products table checked/created.');
+
+    // יצירת טבלת orders אם לא קיימת
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customerId CHAR(36),
+        items TEXT,
+        totalAmount DECIMAL(10,2),
+        status VARCHAR(50) DEFAULT 'חדשה',
+        orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        FOREIGN KEY (customerId) REFERENCES users(id)
+      )
+    `);
+    console.log('Orders table checked/created.');
+
+    // יצירת טבלת admins אם לא קיימת
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS admins (
+        user_id CHAR(36) PRIMARY KEY,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+    console.log('Admins table checked/created.');
+
     // בדיקה אם העמודה admin_notes קיימת
     const [columns] = await connection.query('SHOW COLUMNS FROM users LIKE "admin_notes"');
     if (columns.length === 0) {
-      // אם העמודה לא קיימת, נוסיף אותה
       await connection.query('ALTER TABLE users ADD COLUMN admin_notes JSON DEFAULT NULL');
       console.log('Added admin_notes column to users table.');
     }
@@ -54,7 +116,6 @@ const connection = mysql.createPool({
     // בדיקה אם העמודה cart קיימת
     const [cartColumns] = await connection.query('SHOW COLUMNS FROM users LIKE "cart"');
     if (cartColumns.length === 0) {
-      // אם העמודה לא קיימת, נוסיף אותה
       await connection.query('ALTER TABLE users ADD COLUMN cart JSON DEFAULT NULL');
       console.log('Added cart column to users table.');
     }
@@ -610,7 +671,7 @@ app.get('/api/orders', async (req, res) => {
                             name: product.name,
                             price: product.price,
                             description: product.description,
-                            img: product.img,
+                            img: product.image,
                             shelfLife: product.shelfLife,
                             storage: product.storage,
                             volume: product.volume
