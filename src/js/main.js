@@ -110,6 +110,12 @@ function calculation() {
 
 document.addEventListener('DOMContentLoaded', function() {
   let shop = document.getElementById('shop');
+  if (!shop) {
+    console.log('לא נמצא אלמנט shop בדף הנוכחי');
+    addNavigationButtons();
+    return;
+  }
+  
   let basket = JSON.parse(localStorage.getItem("data")) || [];
   const basketMap = new Map(basket.map(item => [item.id, item]));
   let isLoading = false;
@@ -394,9 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // אתחול ראשוני
   debouncedFetch();
-  calculation(); // עדכון ראשוני של כמות בעגלה
-
-  addNavigationButtons(); // קריאה לפונקציה בטעינת הדף
+  calculation();
+  addNavigationButtons();
 });
 
 // פונקציות עריכת משתמש
