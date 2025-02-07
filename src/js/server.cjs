@@ -21,10 +21,10 @@ app.use((req, res, next) => {
 
 // הגדרת חיבור לבסיס הנתונים
 const connection = mysql.createPool({
-  host: 'Eitan',
-  user: 'Eitan',
-  password: 'Eitan3187',
-  database: 'mystore',
+  host: process.env.DB_HOST || 'Eitan',
+  user: process.env.DB_USER || 'Eitan',
+  password: process.env.DB_PASSWORD || 'Eitan3187',
+  database: process.env.DB_NAME || 'mystore',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
