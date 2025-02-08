@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid'); // הוספת חבילה ליצירת מזהים ייחודיים
 const app = express();
 const port = process.env.PORT || 3000;
+require('dotenv').config(); // טוען את משתני הסביבה מקובץ .env
 
 app.use(bodyParser.json());
 
@@ -20,16 +21,129 @@ app.use((req, res, next) => {
 });
 
 // הגדרת חיבור לבסיס הנתונים
-const connection = mysql.createPool({
-  host: process.env.MYSQLHOST || process.env.DB_HOST || 'containers-us-west-207.railway.app',
-  user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
-  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || 'Eitan3187',
-  database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway',
-  port: process.env.MYSQLPORT || process.env.DB_PORT || 7012,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const pool = mysql.createPool({
+    host: process.env.MYSQLHOST || 'viaduct.proxy.rlwy.net',
+    user: process.env.MYSQLUSER || 'root',
+    password: process.env.MYSQLPASSWORD || 'kHOsqZVYcabXcgkQHFjkCgUvcSTruMnp',
+    database: process.env.MYSQLDATABASE || 'railway',
+    port: process.env.MYSQLPORT || 33431,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    connectTimeout: 60000,
+    acquireTimeout: 60000,
+    timeout: 60000,
+    charset: 'utf8mb4'
 });
+
+// פונקציה לביצוע שאילתה עם ניסיון חיבור מחדש
+const executeQuery = async (query, params = []) => {
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            const [results] = await pool.execute(query, params);
+            return results;
+        } catch (error) {
+            console.error(`שגיאה בביצוע שאילתה (ניסיונות נותרו: ${retries}):`, error);
+            if (error.code === 'PROTOCOL_CONNECTION_LOST' || 
+                error.code === 'ECONNRESET' || 
+                error.code === 'ETIMEDOUT') {
+                retries--;
+                if (retries > 0) {
+                    console.log('מנסה להתחבר מחדש...');
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // המתנה של 2 שניות
+                    continue;
+                }
+            }
+            throw error;
+        }
+    }
+};
+
+// בדיקת חיבור לבסיס הנתונים
+(async () => {
+    try {
+        console.log('בודק חיבור לבסיס הנתונים...');
+        const result = await executeQuery('SELECT 1');
+        console.log('✅ החיבור לבסיס הנתונים הצליח!');
+        
+        // יצירת טבלאות
+        console.log('מתחיל יצירת טבלאות...');
+        
+        await executeQuery(`
+            CREATE TABLE IF NOT EXISTS users (
+                id CHAR(36) PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                phone VARCHAR(20) NOT NULL,
+                address TEXT NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                position INT DEFAULT 0,
+                password VARCHAR(255),
+                code VARCHAR(50) DEFAULT '',
+                debt_balance DECIMAL(10,2) DEFAULT 0,
+                notes JSON DEFAULT NULL,
+                admin_notes JSON DEFAULT NULL,
+                cart JSON DEFAULT NULL,
+                purchases JSON DEFAULT NULL,
+                maps TEXT,
+                waze TEXT,
+                joinDate DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ טבלת users נוצרה/קיימת');
+
+        await executeQuery(`
+            CREATE TABLE IF NOT EXISTS products (
+                id VARCHAR(36) PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                price DECIMAL(10,2) NOT NULL,
+                category VARCHAR(100),
+                image TEXT,
+                description TEXT,
+                volume VARCHAR(50),
+                storage VARCHAR(100),
+                shelfLife VARCHAR(100)
+            )
+        `);
+        console.log('✅ טבלת products נוצרה/קיימת');
+
+        await executeQuery(`
+            CREATE TABLE IF NOT EXISTS orders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customerId CHAR(36),
+                items TEXT,
+                totalAmount DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'חדשה',
+                orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                FOREIGN KEY (customerId) REFERENCES users(id)
+            )
+        `);
+        console.log('✅ טבלת orders נוצרה/קיימת');
+
+        await executeQuery(`
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id CHAR(36) PRIMARY KEY,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        `);
+        console.log('✅ טבלת admins נוצרה/קיימת');
+
+    } catch (error) {
+        console.error('❌ שגיאה בהתחברות לבסיס הנתונים:', error);
+        console.error('פרטי חיבור:', {
+            host: process.env.MYSQLHOST || 'viaduct.proxy.rlwy.net',
+            user: process.env.MYSQLUSER || 'root',
+            database: process.env.MYSQLDATABASE || 'railway',
+            port: process.env.MYSQLPORT || 33431
+        });
+    }
+})();
+
+module.exports = pool;
+
 
 // עדכון השדות maps ו-waze ל-TEXT
 (async () => {
@@ -40,11 +154,11 @@ const connection = mysql.createPool({
     console.log('Database:', process.env.DB_NAME);
     console.log('Port:', process.env.DB_PORT);
     
-    const [result] = await connection.query('SELECT 1');
+    const [result] = await pool.query('SELECT 1');
     console.log('Connected to the database successfully.');
 
     // יצירת טבלת users אם לא קיימת
-    await connection.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id CHAR(36) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -67,7 +181,7 @@ const connection = mysql.createPool({
     console.log('Users table checked/created.');
 
     // יצירת טבלת products אם לא קיימת
-    await connection.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -83,7 +197,7 @@ const connection = mysql.createPool({
     console.log('Products table checked/created.');
 
     // יצירת טבלת orders אם לא קיימת
-    await connection.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id INT AUTO_INCREMENT PRIMARY KEY,
         customerId CHAR(36),
@@ -98,7 +212,7 @@ const connection = mysql.createPool({
     console.log('Orders table checked/created.');
 
     // יצירת טבלת admins אם לא קיימת
-    await connection.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS admins (
         user_id CHAR(36) PRIMARY KEY,
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -107,21 +221,21 @@ const connection = mysql.createPool({
     console.log('Admins table checked/created.');
 
     // בדיקה אם העמודה admin_notes קיימת
-    const [columns] = await connection.query('SHOW COLUMNS FROM users LIKE "admin_notes"');
+    const [columns] = await pool.query('SHOW COLUMNS FROM users LIKE "admin_notes"');
     if (columns.length === 0) {
-      await connection.query('ALTER TABLE users ADD COLUMN admin_notes JSON DEFAULT NULL');
+      await pool.query('ALTER TABLE users ADD COLUMN admin_notes JSON DEFAULT NULL');
       console.log('Added admin_notes column to users table.');
     }
 
     // בדיקה אם העמודה cart קיימת
-    const [cartColumns] = await connection.query('SHOW COLUMNS FROM users LIKE "cart"');
+    const [cartColumns] = await pool.query('SHOW COLUMNS FROM users LIKE "cart"');
     if (cartColumns.length === 0) {
-      await connection.query('ALTER TABLE users ADD COLUMN cart JSON DEFAULT NULL');
+      await pool.query('ALTER TABLE users ADD COLUMN cart JSON DEFAULT NULL');
       console.log('Added cart column to users table.');
     }
 
     // עדכון השדות maps ו-waze ל-TEXT
-    await connection.query(`
+    await pool.query(`
       ALTER TABLE users 
       MODIFY COLUMN maps TEXT,
       MODIFY COLUMN waze TEXT;
@@ -138,7 +252,7 @@ const connection = mysql.createPool({
   }
 })();
 
-module.exports = { connection };
+module.exports = { pool };
 
 // הוספת הגדרות סטטיות לקבצים
 app.use(express.static(path.join(__dirname, '../')));
@@ -149,7 +263,7 @@ app.use('/images', express.static(path.join(__dirname, '../assets')));
 // קבלת כל המוצרים
 app.get('/api/products', async (req, res) => {
   try {
-    const [products] = await connection.query('SELECT * FROM products');
+    const [products] = await pool.query('SELECT * FROM products');
     res.json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -161,7 +275,7 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
     try {
         const { id, name, price, category, image, description, volume, storage, shelfLife } = req.body;
-        const result = await connection.query(
+        const result = await pool.query(
             'INSERT INTO products (id, name, price, category, image, description, volume, storage, shelfLife) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [id, name, price, category, image, description, volume, storage, shelfLife]
         );
@@ -176,7 +290,7 @@ app.post('/api/products', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await connection.query('DELETE FROM products WHERE id=?', [id]);
+    await pool.query('DELETE FROM products WHERE id=?', [id]);
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);
@@ -189,7 +303,7 @@ app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, category, image, description } = req.body;
-    await connection.query(
+    await pool.query(
       'UPDATE products SET name=?, price=?, category=?, image=?, description=? WHERE id=?',
       [name, price, category, image, description, id]
     );
@@ -228,7 +342,7 @@ app.get('/api/users', async (req, res) => {
       values.push(city);
     }
 
-    const [rows] = await connection.execute(query, values);
+    const [rows] = await pool.execute(query, values);
     res.json(rows);
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -314,7 +428,7 @@ app.post('/api/users', async (req, res) => {
   console.log('Processing notes:', { notes, admin_notes, processedNotes, processedAdminNotes }); // לוג לבדיקה
 
   try {
-    await connection.execute(
+    await pool.execute(
       `INSERT INTO users (id, name, phone, address, city, position, notes, admin_notes, cart, purchases, password, maps, waze, joinDate, code, debt_balance)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
       [
@@ -353,7 +467,7 @@ app.post('/api/users', async (req, res) => {
 app.delete('/api/users/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await connection.execute('DELETE FROM users WHERE id = ?', [id]);
+    const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [id]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -374,7 +488,7 @@ app.put('/api/users/:id', async (req, res) => {
         console.log('Request body:', req.body);
         
         // קבלת נתוני המשתמש הקיימים
-        const [existingUser] = await connection.query('SELECT * FROM users WHERE id = ?', [userId]);
+        const [existingUser] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
         if (!existingUser || existingUser.length === 0) {
             console.log('User not found:', userId);
             return res.status(404).json({ error: 'משתמש לא נמצא' });
@@ -395,7 +509,7 @@ app.put('/api/users/:id', async (req, res) => {
 
                 console.log('Updating cart with:', processedCart);
 
-                await connection.query(`
+                await pool.query(`
                     UPDATE users 
                     SET 
                         name = ?,
@@ -439,7 +553,7 @@ app.put('/api/users/:id', async (req, res) => {
                     userId
                 ]);
 
-                const [updatedUser] = await connection.query('SELECT * FROM users WHERE id = ?', [userId]);
+                const [updatedUser] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
                 console.log('Updated user:', updatedUser[0]);
                 return res.json(updatedUser[0]);
             } catch (e) {
@@ -480,7 +594,7 @@ app.put('/api/users/:id', async (req, res) => {
         console.log('Processed data for update:', processedData);
 
         // עדכון הנתונים בדאטהבייס
-        await connection.query(`
+        await pool.query(`
             UPDATE users 
             SET 
                 name = ?,
@@ -525,7 +639,7 @@ app.put('/api/users/:id', async (req, res) => {
         ]);
 
         // החזרת הנתונים המעודכנים
-        const [updatedUser] = await connection.query('SELECT * FROM users WHERE id = ?', [userId]);
+        const [updatedUser] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
         console.log('Final updated user:', updatedUser[0]);
         res.json(updatedUser[0]);
 
@@ -545,7 +659,7 @@ app.put('/api/users/:id/debt', async (req, res) => {
         const { id } = req.params;
         const { debt_balance } = req.body;
         
-        await connection.query(
+        await pool.query(
             'UPDATE users SET debt_balance=? WHERE id=?',
             [debt_balance, id]
         );
@@ -560,7 +674,7 @@ app.put('/api/users/:id/debt', async (req, res) => {
 // קבלת משתמשים עם חוב
 app.get('/api/users/debtors', async (req, res) => {
     try {
-        const [users] = await connection.query('SELECT * FROM users WHERE debt_balance > 0');
+        const [users] = await pool.query('SELECT * FROM users WHERE debt_balance > 0');
         res.json(users);
     } catch (error) {
         console.error('Error fetching debtors:', error);
@@ -594,7 +708,7 @@ app.get('/admin', (req, res) => {
 app.get('/api/products/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const [products] = await connection.query('SELECT * FROM products WHERE id = ?', [id]);
+        const [products] = await pool.query('SELECT * FROM products WHERE id = ?', [id]);
         
         if (products.length === 0) {
             return res.status(404).json({ error: 'Product not found' });
@@ -625,10 +739,10 @@ app.get('/api/orders', async (req, res) => {
         ordersQuery += ' ORDER BY orderDate DESC';
 
         // שליפת ההזמנות
-        const [orders] = await connection.query(ordersQuery, queryParams);
+        const [orders] = await pool.query(ordersQuery, queryParams);
         
         // שליפת כל המשתמשים
-        const [users] = await connection.query('SELECT * FROM users');
+        const [users] = await pool.query('SELECT * FROM users');
         
         // יצירת מפה של משתמשים לפי ID
         const usersMap = {};
@@ -637,7 +751,7 @@ app.get('/api/orders', async (req, res) => {
         });
 
         // שליפת כל המוצרים
-        const [products] = await connection.query('SELECT * FROM products');
+        const [products] = await pool.query('SELECT * FROM products');
         
         // יצירת מפה של מוצרים לפי ID
         const productsMap = {};
@@ -725,7 +839,7 @@ app.post('/api/orders', async (req, res) => {
         }
 
         // בדיקה שהמשתמש קיים
-        const [userRows] = await connection.query('SELECT * FROM users WHERE id = ?', [customerId]);
+        const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [customerId]);
         if (!userRows || userRows.length === 0) {
             return res.status(404).json({ error: 'משתמש לא נמצא' });
         }
@@ -736,7 +850,7 @@ app.post('/api/orders', async (req, res) => {
         const orderDate = now.toISOString().slice(0, 19).replace('T', ' ');
 
         // הכנסת ההזמנה לדאטהבייס
-        const [orderResult] = await connection.query(
+        const [orderResult] = await pool.query(
             'INSERT INTO orders (customerId, items, totalAmount, status, orderDate) VALUES (?, ?, ?, ?, ?)',
             [customerId, JSON.stringify(items), totalAmount, 'בטיפול', orderDate]
         );
@@ -764,7 +878,7 @@ app.post('/api/orders', async (req, res) => {
         purchases.push(newPurchase);
 
         // עדכון המשתמש בדאטהבייס
-        await connection.query(
+        await pool.query(
             'UPDATE users SET purchases = ?, cart = ?, debt_balance = debt_balance + ? WHERE id = ?',
             [
                 JSON.stringify(purchases),
@@ -775,7 +889,7 @@ app.post('/api/orders', async (req, res) => {
         );
 
         // שליפת ההזמנה שנוצרה
-        const [newOrder] = await connection.query(
+        const [newOrder] = await pool.query(
             'SELECT * FROM orders WHERE id = ?',
             [orderResult.insertId]
         );
@@ -810,7 +924,7 @@ app.put('/api/orders/:orderId/status', async (req, res) => {
             return res.status(400).json({ error: 'סטטוס לא תקין' });
         }
 
-        await connection.query(
+        await pool.query(
             'UPDATE orders SET status = ? WHERE id = ?',
             [status, orderId]
         );
@@ -826,7 +940,7 @@ app.put('/api/orders/:orderId/status', async (req, res) => {
 app.delete('/api/orders/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await connection.query('DELETE FROM orders WHERE id=?', [id]);
+        await pool.query('DELETE FROM orders WHERE id=?', [id]);
         res.json({ message: 'Order deleted successfully' });
     } catch (error) {
         console.error('Error deleting order:', error);
@@ -846,7 +960,7 @@ app.put('/api/orders/:id', async (req, res) => {
         }
         
         // בדיקה שההזמנה קיימת
-        const [existingOrder] = await connection.query(
+        const [existingOrder] = await pool.query(
             'SELECT * FROM orders WHERE id = ?',
             [req.params.id]
         );
@@ -859,7 +973,7 @@ app.put('/api/orders/:id', async (req, res) => {
         }
 
         // בדיקה שכל המוצרים קיימים
-        const [products] = await connection.query(
+        const [products] = await pool.query(
             'SELECT * FROM products WHERE id IN (?)',
             [itemIds]
         );
@@ -872,7 +986,7 @@ app.put('/api/orders/:id', async (req, res) => {
         }
 
         // בדיקה שהמשתמש קיים
-        const [users] = await connection.query(
+        const [users] = await pool.query(
             'SELECT * FROM users WHERE id = ?',
             [customerId]
         );
@@ -887,7 +1001,7 @@ app.put('/api/orders/:id', async (req, res) => {
         // שמירת מזהי המוצרים כ-JSON
         const itemsJson = JSON.stringify(itemIds);
 
-        await connection.query(
+        await pool.query(
             'UPDATE orders SET customerId = ?, items = ?, totalAmount = ?, status = ? WHERE id = ?',
             [customerId, itemsJson, totalAmount, status, req.params.id]
         );
@@ -939,7 +1053,7 @@ app.patch('/api/products/:id/field', async (req, res) => {
             return res.status(400).json({ error: 'Invalid field name' });
         }
 
-        await connection.query(
+        await pool.query(
             `UPDATE products SET ${field}=? WHERE id=?`,
             [value, id]
         );
@@ -955,17 +1069,17 @@ app.patch('/api/products/:id/field', async (req, res) => {
 app.get('/api/users/stats', async (req, res) => {
     try {
         // סה"כ משתמשים
-        const [totalResult] = await connection.query('SELECT COUNT(*) as total FROM users');
+        const [totalResult] = await pool.query('SELECT COUNT(*) as total FROM users');
         
         // משתמשים חדשים השבוע
-        const [newUsersResult] = await connection.query(`
+        const [newUsersResult] = await pool.query(`
             SELECT COUNT(*) as count 
             FROM users 
             WHERE joinDate >= DATE_SUB(NOW(), INTERVAL 7 DAY)
         `);
         
         // משתמשים לפי ערים
-        const [cityStats] = await connection.query(`
+        const [cityStats] = await pool.query(`
             SELECT city, COUNT(*) as count 
             FROM users 
             GROUP BY city
@@ -986,31 +1100,31 @@ app.get('/api/users/stats', async (req, res) => {
 app.get('/api/setup/update-orders', async (req, res) => {
     try {
         // בדיקת מבנה הטבלה הנוכחי
-        const [columns] = await connection.query('DESCRIBE orders');
+        const [columns] = await pool.query('DESCRIBE orders');
         const hasCustomerId = columns.some(col => col.Field === 'customerId');
         
         if (!hasCustomerId) {
             // גיבוי הטבלה הישנה
-            await connection.query('CREATE TABLE orders_backup LIKE orders');
-            await connection.query('INSERT INTO orders_backup SELECT * FROM orders');
+            await pool.query('CREATE TABLE orders_backup LIKE orders');
+            await pool.query('INSERT INTO orders_backup SELECT * FROM orders');
             
             // הוספת עמודת customerId
-            await connection.query('ALTER TABLE orders ADD COLUMN customerId CHAR(36)');
+            await pool.query('ALTER TABLE orders ADD COLUMN customerId CHAR(36)');
             
             // עדכון ה-customerId לפי שם הלקוח
-            await connection.query(`
+            await pool.query(`
                 UPDATE orders o
                 JOIN users u ON o.customerName = u.name
                 SET o.customerId = u.id
             `);
             
             // הוספת מפתח זר
-            await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+            await pool.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
             
             // הסרת עמודות מיותרות
-            await connection.query('ALTER TABLE orders DROP COLUMN customerName');
-            await connection.query('ALTER TABLE orders DROP COLUMN phone');
-            await connection.query('ALTER TABLE orders DROP COLUMN address');
+            await pool.query('ALTER TABLE orders DROP COLUMN customerName');
+            await pool.query('ALTER TABLE orders DROP COLUMN phone');
+            await pool.query('ALTER TABLE orders DROP COLUMN address');
             
             res.json({ message: 'טבלת הזמנות עודכנה בהצלחה' });
         } else {
@@ -1026,16 +1140,16 @@ app.get('/api/setup/update-orders', async (req, res) => {
 app.get('/api/debug/check', async (req, res) => {
     try {
         // בדיקת מבנה טבלת הזמנות
-        const [ordersStructure] = await connection.query('DESCRIBE orders');
+        const [ordersStructure] = await pool.query('DESCRIBE orders');
         
         // בדיקת דוגמת הזמנה
-        const [orders] = await connection.query('SELECT * FROM orders LIMIT 1');
+        const [orders] = await pool.query('SELECT * FROM orders LIMIT 1');
         const sampleOrder = orders[0];
         
         // בדיקת פרטי המשתמש של ההזמנה
         let userDetails = null;
         if (sampleOrder && sampleOrder.customerId) {
-            const [users] = await connection.query(
+            const [users] = await pool.query(
                 'SELECT * FROM users WHERE id = ?',
                 [sampleOrder.customerId]
             );
@@ -1047,7 +1161,7 @@ app.get('/api/debug/check', async (req, res) => {
         if (sampleOrder && sampleOrder.items) {
             try {
                 const itemIds = JSON.parse(sampleOrder.items);
-                const [products] = await connection.query(
+                const [products] = await pool.query(
                     'SELECT * FROM products WHERE id IN (?)',
                     [itemIds]
                 );
@@ -1084,12 +1198,12 @@ app.get('/api/debug/check', async (req, res) => {
 app.get('/api/setup/fix-orders', async (req, res) => {
     try {
         // בדיקת מבנה הטבלה הנוכחי
-        const [ordersStructure] = await connection.query('DESCRIBE orders');
+        const [ordersStructure] = await pool.query('DESCRIBE orders');
         console.log('Current orders table structure:', ordersStructure);
 
         // יצירת טבלת גיבוי
-        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_fix LIKE orders');
-        await connection.query('INSERT INTO orders_backup_fix SELECT * FROM orders');
+        await pool.query('CREATE TABLE IF NOT EXISTS orders_backup_fix LIKE orders');
+        await pool.query('INSERT INTO orders_backup_fix SELECT * FROM orders');
         console.log('Created backup table');
 
         // בדיקה אם צריך להוסיף עמודות
@@ -1125,14 +1239,14 @@ app.get('/api/setup/fix-orders', async (req, res) => {
         // ביצוע כל הפעולות הנדרשות
         for (const action of actions) {
             console.log('Executing:', action);
-            await connection.query(action);
+            await pool.query(action);
         }
 
         // הוספת מפתח זר אם לא קיים
-        const [foreignKeys] = await connection.query('SHOW CREATE TABLE orders');
+        const [foreignKeys] = await pool.query('SHOW CREATE TABLE orders');
         if (!foreignKeys[0]['Create Table'].includes('FOREIGN KEY (`customerId`) REFERENCES `users`')) {
             try {
-                await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+                await pool.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
                 console.log('Added foreign key constraint');
             } catch (e) {
                 console.error('Error adding foreign key:', e);
@@ -1140,7 +1254,7 @@ app.get('/api/setup/fix-orders', async (req, res) => {
         }
 
         // בדיקת המבנה החדש
-        const [newStructure] = await connection.query('DESCRIBE orders');
+        const [newStructure] = await pool.query('DESCRIBE orders');
         
         res.json({
             message: 'טבלת ההזמנות תוקנה בהצלחה',
@@ -1159,17 +1273,17 @@ app.get('/api/setup/fix-orders-table', async (req, res) => {
     try {
         // יצירת גיבוי
         console.log('Creating backup...');
-        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_fix2 LIKE orders');
-        await connection.query('INSERT INTO orders_backup_fix2 SELECT * FROM orders');
+        await pool.query('CREATE TABLE IF NOT EXISTS orders_backup_fix2 LIKE orders');
+        await pool.query('INSERT INTO orders_backup_fix2 SELECT * FROM orders');
 
         // בדיקת מבנה נוכחי
         console.log('Checking current structure...');
-        const [currentStructure] = await connection.query('DESCRIBE orders');
+        const [currentStructure] = await pool.query('DESCRIBE orders');
         console.log('Current structure:', currentStructure);
 
         // יצירת טבלה חדשה
         console.log('Creating new table structure...');
-        await connection.query(`
+        await pool.query(`
             CREATE TABLE orders_new (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 customerId CHAR(36) NOT NULL,
@@ -1184,7 +1298,7 @@ app.get('/api/setup/fix-orders-table', async (req, res) => {
 
         // העתקת נתונים
         console.log('Copying data...');
-        await connection.query(`
+        await pool.query(`
             INSERT INTO orders_new (id, customerId, items, totalAmount, status, orderDate, notes)
             SELECT id, customerId, items, totalAmount, status, orderDate, notes
             FROM orders
@@ -1192,17 +1306,17 @@ app.get('/api/setup/fix-orders-table', async (req, res) => {
 
         // החלפת טבלאות
         console.log('Replacing tables...');
-        await connection.query('DROP TABLE orders');
-        await connection.query('RENAME TABLE orders_new TO orders');
+        await pool.query('DROP TABLE orders');
+        await pool.query('RENAME TABLE orders_new TO orders');
 
         // בדיקת מבנה חדש
         console.log('Checking new structure...');
-        const [newStructure] = await connection.query('DESCRIBE orders');
+        const [newStructure] = await pool.query('DESCRIBE orders');
         
         // בדיקת נתונים
         console.log('Checking data...');
-        const [orders] = await connection.query('SELECT * FROM orders LIMIT 5');
-        const [invalidCustomers] = await connection.query(`
+        const [orders] = await pool.query('SELECT * FROM orders LIMIT 5');
+        const [invalidCustomers] = await pool.query(`
             SELECT o.* 
             FROM orders o 
             LEFT JOIN users u ON o.customerId = u.id 
@@ -1231,18 +1345,18 @@ app.get('/api/setup/repair-orders', async (req, res) => {
     try {
         // יצירת גיבוי
         console.log('Creating backup...');
-        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_repair LIKE orders');
-        await connection.query('INSERT INTO orders_backup_repair SELECT * FROM orders');
+        await pool.query('CREATE TABLE IF NOT EXISTS orders_backup_repair LIKE orders');
+        await pool.query('INSERT INTO orders_backup_repair SELECT * FROM orders');
 
         // בדיקת מבנה נוכחי
         console.log('Checking current structure...');
-        const [currentStructure] = await connection.query('DESCRIBE orders');
+        const [currentStructure] = await pool.query('DESCRIBE orders');
         console.log('Current structure:', currentStructure);
 
         // יצירת טבלה חדשה
         console.log('Creating new table...');
-        await connection.query(`DROP TABLE IF EXISTS orders_new`);
-        await connection.query(`
+        await pool.query(`DROP TABLE IF EXISTS orders_new`);
+        await pool.query(`
             CREATE TABLE orders_new (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 customerId CHAR(36),
@@ -1256,7 +1370,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
 
         // העתקת נתונים
         console.log('Copying data...');
-        const [orders] = await connection.query('SELECT * FROM orders');
+        const [orders] = await pool.query('SELECT * FROM orders');
         
         for (const order of orders) {
             // בדיקת customerId
@@ -1266,7 +1380,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
             }
 
             // בדיקת קיום המשתמש
-            const [user] = await connection.query('SELECT id FROM users WHERE id = ?', [order.customerId]);
+            const [user] = await pool.query('SELECT id FROM users WHERE id = ?', [order.customerId]);
             if (user.length === 0) {
                 console.log(`User not found for order ${order.id} (customerId: ${order.customerId})`);
                 continue;
@@ -1286,7 +1400,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
             }
 
             // הכנסת הנתונים לטבלה החדשה
-            await connection.query(`
+            await pool.query(`
                 INSERT INTO orders_new 
                 (id, customerId, items, totalAmount, status, orderDate, notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1303,15 +1417,15 @@ app.get('/api/setup/repair-orders', async (req, res) => {
 
         // החלפת טבלאות
         console.log('Replacing tables...');
-        await connection.query('DROP TABLE orders');
-        await connection.query('RENAME TABLE orders_new TO orders');
+        await pool.query('DROP TABLE orders');
+        await pool.query('RENAME TABLE orders_new TO orders');
 
         // הוספת מפתח זר
         console.log('Adding foreign key...');
-        await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+        await pool.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
 
         // בדיקת הנתונים החדשים
-        const [newOrders] = await connection.query(`
+        const [newOrders] = await pool.query(`
             SELECT 
                 o.*,
                 u.name as customerName
@@ -1336,18 +1450,18 @@ app.get('/api/setup/repair-orders', async (req, res) => {
     try {
         // יצירת גיבוי
         console.log('Creating backup...');
-        await connection.query('CREATE TABLE IF NOT EXISTS orders_backup_repair LIKE orders');
-        await connection.query('INSERT INTO orders_backup_repair SELECT * FROM orders');
+        await pool.query('CREATE TABLE IF NOT EXISTS orders_backup_repair LIKE orders');
+        await pool.query('INSERT INTO orders_backup_repair SELECT * FROM orders');
 
         // בדיקת מבנה נוכחי
         console.log('Checking current structure...');
-        const [currentStructure] = await connection.query('DESCRIBE orders');
+        const [currentStructure] = await pool.query('DESCRIBE orders');
         console.log('Current structure:', currentStructure);
 
         // יצירת טבלה חדשה
         console.log('Creating new table...');
-        await connection.query(`DROP TABLE IF EXISTS orders_new`);
-        await connection.query(`
+        await pool.query(`DROP TABLE IF EXISTS orders_new`);
+        await pool.query(`
             CREATE TABLE orders_new (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 customerId CHAR(36),
@@ -1361,7 +1475,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
 
         // העתקת נתונים
         console.log('Copying data...');
-        const [orders] = await connection.query('SELECT * FROM orders');
+        const [orders] = await pool.query('SELECT * FROM orders');
         
         for (const order of orders) {
             // בדיקת customerId
@@ -1371,7 +1485,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
             }
 
             // בדיקת קיום המשתמש
-            const [user] = await connection.query('SELECT id FROM users WHERE id = ?', [order.customerId]);
+            const [user] = await pool.query('SELECT id FROM users WHERE id = ?', [order.customerId]);
             if (user.length === 0) {
                 console.log(`User not found for order ${order.id} (customerId: ${order.customerId})`);
                 continue;
@@ -1391,7 +1505,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
             }
 
             // הכנסת הנתונים לטבלה החדשה
-            await connection.query(`
+            await pool.query(`
                 INSERT INTO orders_new 
                 (id, customerId, items, totalAmount, status, orderDate, notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1408,15 +1522,15 @@ app.get('/api/setup/repair-orders', async (req, res) => {
 
         // החלפת טבלאות
         console.log('Replacing tables...');
-        await connection.query('DROP TABLE orders');
-        await connection.query('RENAME TABLE orders_new TO orders');
+        await pool.query('DROP TABLE orders');
+        await pool.query('RENAME TABLE orders_new TO orders');
 
         // הוספת מפתח זר
         console.log('Adding foreign key...');
-        await connection.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
+        await pool.query('ALTER TABLE orders ADD FOREIGN KEY (customerId) REFERENCES users(id)');
 
         // בדיקת הנתונים החדשים
-        const [newOrders] = await connection.query(`
+        const [newOrders] = await pool.query(`
             SELECT 
                 o.*,
                 u.name as customerName
@@ -1439,7 +1553,7 @@ app.get('/api/setup/repair-orders', async (req, res) => {
 // נקודת קצה לקבלת רשימת מנהלים
 app.get('/api/admins', async (req, res) => {
     try {
-        const [results] = await connection.query('SELECT user_id FROM admins');
+        const [results] = await pool.query('SELECT user_id FROM admins');
         res.json(results.map(row => row.user_id));
     } catch (err) {
         console.error('שגיאה בקבלת מנהלים:', err);
@@ -1453,7 +1567,7 @@ app.post('/api/admins', async (req, res) => {
         const { adminIds } = req.body;
         
         // מחיקת כל המנהלים הקיימים
-        await connection.query('DELETE FROM admins');
+        await pool.query('DELETE FROM admins');
         
         // אם אין מנהלים חדשים להוסיף
         if (!adminIds || adminIds.length === 0) {
@@ -1462,7 +1576,7 @@ app.post('/api/admins', async (req, res) => {
         
         // הוספת המנהלים החדשים
         const values = adminIds.map(id => [id]);
-        await connection.query('INSERT INTO admins (user_id) VALUES ?', [values]);
+        await pool.query('INSERT INTO admins (user_id) VALUES ?', [values]);
         res.json({ success: true });
     } catch (err) {
         console.error('שגיאה בעדכון מנהלים:', err);
@@ -1476,7 +1590,7 @@ app.get('/api/users/:id', async (req, res) => {
         const { id } = req.params;
         console.log('Looking for user with ID:', id);
         
-        const [users] = await connection.query(
+        const [users] = await pool.query(
             'SELECT * FROM users WHERE id = ?',
             [id]
         );

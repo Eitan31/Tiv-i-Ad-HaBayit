@@ -745,14 +745,14 @@ async function showUserForm(user = null) {
                 top: 1rem;
                 left: 1rem;
                 background: #ef4444;
-                border: none;
+                                border: none;
                 color: white;
                 width: 32px;
                 height: 32px;
                 border-radius: 50%;
                 font-size: 18px;
-                cursor: pointer;
-                display: flex;
+                                cursor: pointer;
+                        display: flex;
                 align-items: center;
                 justify-content: center;
                 transition: all 0.2s;
@@ -784,27 +784,27 @@ async function showUserForm(user = null) {
                 <div class="form-group">
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">שם מלא *</label>
                     <input type="text" name="name" value="${user?.name || ''}" required style="
-                        width: 100%;
+                width: 100%;
                         padding: 0.75rem;
                         border: 1px solid #d1d5db;
                         border-radius: 8px;
                         font-size: 1rem;
                         transition: border-color 0.2s;
                     ">
-                </div>
+        </div>
                 
                 <!-- טלפון -->
                 <div class="form-group">
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">טלפון *</label>
                     <input type="tel" name="phone" value="${user?.phone || ''}" required style="
-                        width: 100%;
+            width: 100%;
                         padding: 0.75rem;
                         border: 1px solid #d1d5db;
                         border-radius: 8px;
                         font-size: 1rem;
                         transition: border-color 0.2s;
                     ">
-                </div>
+            </div>
 
                 <!-- עיר -->
                 <div class="form-group">
@@ -850,7 +850,7 @@ async function showUserForm(user = null) {
                         font-size: 1rem;
                         transition: border-color 0.2s;
                     ">
-                </div>
+                    </div>
 
                 <!-- מיקום -->
                 <div class="form-group">
@@ -882,7 +882,7 @@ async function showUserForm(user = null) {
                             cursor: pointer;
                             font-size: 0.9rem;
                         ">הזז אחרי משתמש</button>
-                    </div>
+                </div>
                 </div>
 
                 <!-- סיסמה -->
@@ -932,20 +932,20 @@ async function showUserForm(user = null) {
                                     border-radius: 8px;
                                     font-size: 1rem;
                                 ">
-                                <button type="button" onclick="removeNote(this)" class="remove-note" style="
-                                    background-color: #ef4444;
-                                    color: white;
-                                    border: none;
+                                    <button type="button" onclick="removeNote(this)" class="remove-note" style="
+                                        background-color: #ef4444;
+                                        color: white;
+                                        border: none;
                                     border-radius: 8px;
                                     width: 36px;
                                     height: 36px;
-                                    cursor: pointer;
+                                        cursor: pointer;
                                     display: flex;
                                     align-items: center;
                                     justify-content: center;
                                     font-size: 1.2rem;
-                                ">-</button>
-                            </div>
+                                    ">-</button>
+                                </div>
                         `).join('')}
                     </div>
                     <button type="button" onclick="addNote()" style="
@@ -972,8 +972,8 @@ async function showUserForm(user = null) {
                         gap: 0.5rem;
                     ">
                         ${(user?.admin_notes || []).map(note => `
-                            <div class="note-row" style="
-                                display: flex;
+                                <div class="note-row" style="
+                                    display: flex;
                                 gap: 0.5rem;
                                 align-items: center;
                             ">
@@ -985,19 +985,19 @@ async function showUserForm(user = null) {
                                     font-size: 1rem;
                                 ">
                                 <button type="button" onclick="removeNote(this)" class="remove-note" style="
-                                    background-color: #ef4444;
-                                    color: white;
-                                    border: none;
+                                        background-color: #ef4444;
+                                        color: white;
+                                        border: none;
                                     border-radius: 8px;
                                     width: 36px;
                                     height: 36px;
-                                    cursor: pointer;
+                                        cursor: pointer;
                                     display: flex;
                                     align-items: center;
                                     justify-content: center;
                                     font-size: 1.2rem;
-                                ">-</button>
-                            </div>
+                                    ">-</button>
+                                </div>
                         `).join('')}
                     </div>
                     <button type="button" onclick="addAdminNote()" style="
@@ -1077,18 +1077,18 @@ async function showUserForm(user = null) {
         e.preventDefault();
         
         try {
-            const formData = new FormData(form);
+        const formData = new FormData(form);
             const phone = formData.get('phone');
             const password = formData.get('password');
-            
-            const userData = {
-                name: formData.get('name'),
-                phone: phone,
+        
+        const userData = {
+            name: formData.get('name'),
+            phone: phone,
                 password: password || phone.replace(/[^0-9]/g, ''), // אם אין סיסמה, משתמשים במספר הטלפון ללא תווים מיוחדים
                 code: formData.get('code'),
-                city: formData.get('city') === 'אחר' ? formData.get('otherCity') : formData.get('city'),
+            city: formData.get('city') === 'אחר' ? formData.get('otherCity') : formData.get('city'),
                 address: formData.get('address'),
-                debt_balance: parseFloat(formData.get('debt_balance')) || 0,
+            debt_balance: parseFloat(formData.get('debt_balance')) || 0,
                 position: parseInt(formData.get('position')) || 0,
                 maps: formData.get('maps'),
                 waze: formData.get('waze'),
@@ -1116,7 +1116,7 @@ async function showUserForm(user = null) {
             
             // הצגת הודעת הצלחה
             showSuccessMessage(isEdit ? 'המשתמש עודכן בהצלחה' : 'המשתמש נוסף בהצלחה');
-            
+
         } catch (error) {
             console.error('שגיאה בשמירת המשתמש:', error);
             showErrorMessage('שגיאה בשמירת המשתמש');
