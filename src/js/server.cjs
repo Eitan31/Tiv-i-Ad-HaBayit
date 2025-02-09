@@ -22,11 +22,11 @@ app.use((req, res, next) => {
 
 // הגדרת חיבור לבסיס הנתונים
 const pool = mysql.createPool({
-    host: process.env.MYSQLHOST ,
-    user: process.env.MYSQLUSER ,
-    password: process.env.MYSQLPASSWORD ,
-    database: process.env.MYSQLDATABASE ,
-    port: process.env.MYSQLPORT ,
+    host: 'localhost',
+    user: 'Eitan',
+    password: 'Eitan3187',
+    database: 'mystore',
+    port: 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -66,10 +66,10 @@ module.exports = pool;
 (async () => {
   try {
     console.log('נסיון התחברות לבסיס הנתונים עם הפרטים הבאים:');
-    console.log('Host:', process.env.MYSQLHOST);
-    console.log('User:', process.env.MYSQLUSER);
-    console.log('Database:', process.env.MYSQLDATABASE);
-    console.log('Port:', process.env.MYSQLPORT);
+    console.log('Host:', 'localhost');
+    console.log('User:', 'Eitan');
+    console.log('Database:', 'mystore');
+    console.log('Port:', 3306);
     
     const [result] = await pool.query('SELECT 1');
     console.log('Connected to the database successfully.');
@@ -91,10 +91,10 @@ module.exports = pool;
   } catch (err) {
     console.error('Error connecting to database:', err);
     console.error('Connection details:', {
-      host: process.env.MYSQLHOST,
-      user: process.env.MYSQLUSER,
-      database: process.env.MYSQLDATABASE,
-      port: process.env.MYSQLPORT
+      host: 'localhost',
+      user: 'Eitan',
+      database: 'mystore',
+      port: 3306
     });
   }
 })();
