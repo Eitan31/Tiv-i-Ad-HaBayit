@@ -56,85 +56,8 @@ const executeQuery = async (query, params = []) => {
     }
 };
 
-// בדיקת חיבור לבסיס הנתונים
-(async () => {
-    try {
-        console.log('בודק חיבור לבסיס הנתונים...');
-        const result = await executeQuery('SELECT 1');
-        console.log('✅ החיבור לבסיס הנתונים הצליח!');
-        
-        // יצירת טבלאות
-        console.log('מתחיל יצירת טבלאות...');
-        
-        await executeQuery(`
-            CREATE TABLE IF NOT EXISTS users (
-                id CHAR(36) PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                phone VARCHAR(20) NOT NULL,
-                address TEXT NOT NULL,
-                city VARCHAR(100) NOT NULL,
-                position INT DEFAULT 0,
-                password VARCHAR(255),
-                code VARCHAR(50) DEFAULT '',
-                debt_balance DECIMAL(10,2) DEFAULT 0,
-                notes JSON DEFAULT NULL,
-                admin_notes JSON DEFAULT NULL,
-                cart JSON DEFAULT NULL,
-                purchases JSON DEFAULT NULL,
-                maps TEXT,
-                waze TEXT,
-                joinDate DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        console.log('✅ טבלת users נוצרה/קיימת');
 
-        await executeQuery(`
-            CREATE TABLE IF NOT EXISTS products (
-                id VARCHAR(36) PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                price DECIMAL(10,2) NOT NULL,
-                category VARCHAR(100),
-                image TEXT,
-                description TEXT,
-                volume VARCHAR(50),
-                storage VARCHAR(100),
-                shelfLife VARCHAR(100)
-            )
-        `);
-        console.log('✅ טבלת products נוצרה/קיימת');
 
-        await executeQuery(`
-            CREATE TABLE IF NOT EXISTS orders (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                customerId CHAR(36),
-                items TEXT,
-                totalAmount DECIMAL(10,2),
-                status VARCHAR(50) DEFAULT 'חדשה',
-                orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-                notes TEXT,
-                FOREIGN KEY (customerId) REFERENCES users(id)
-            )
-        `);
-        console.log('✅ טבלת orders נוצרה/קיימת');
-
-        await executeQuery(`
-            CREATE TABLE IF NOT EXISTS admins (
-                user_id CHAR(36) PRIMARY KEY,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        `);
-        console.log('✅ טבלת admins נוצרה/קיימת');
-
-    } catch (error) {
-        console.error('❌ שגיאה בהתחברות לבסיס הנתונים:', error);
-        console.error('פרטי חיבור:', {
-            host: process.env.MYSQLHOST || 'localhost',
-            user: process.env.MYSQLUSER || 'root',
-            database: process.env.MYSQLDATABASE || 'mystore',
-            port: process.env.MYSQLPORT || 3306
-        });
-    }
-})();
 
 module.exports = pool;
 
@@ -151,82 +74,12 @@ module.exports = pool;
     const [result] = await pool.query('SELECT 1');
     console.log('Connected to the database successfully.');
 
-    // יצירת טבלת users אם לא קיימת
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id CHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        phone VARCHAR(20) NOT NULL,
-        address TEXT NOT NULL,
-        city VARCHAR(100) NOT NULL,
-        position INT DEFAULT 0,
-        password VARCHAR(255),
-        code VARCHAR(50) DEFAULT '',
-        debt_balance DECIMAL(10,2) DEFAULT 0,
-        notes JSON DEFAULT NULL,
-        admin_notes JSON DEFAULT NULL,
-        cart JSON DEFAULT NULL,
-        purchases JSON DEFAULT NULL,
-        maps TEXT,
-        waze TEXT,
-        joinDate DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log('Users table checked/created.');
 
-    // יצירת טבלת products אם לא קיימת
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        price DECIMAL(10,2) NOT NULL,
-        category VARCHAR(100),
-        image TEXT,
-        description TEXT,
-        volume VARCHAR(50),
-        storage VARCHAR(100),
-        shelfLife VARCHAR(100)
-      )
-    `);
-    console.log('Products table checked/created.');
 
-    // יצירת טבלת orders אם לא קיימת
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        customerId CHAR(36),
-        items TEXT,
-        totalAmount DECIMAL(10,2),
-        status VARCHAR(50) DEFAULT 'חדשה',
-        orderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-        notes TEXT,
-        FOREIGN KEY (customerId) REFERENCES users(id)
-      )
-    `);
-    console.log('Orders table checked/created.');
 
-    // יצירת טבלת admins אם לא קיימת
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS admins (
-        user_id CHAR(36) PRIMARY KEY,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
-    console.log('Admins table checked/created.');
 
-    // בדיקה אם העמודה admin_notes קיימת
-    const [columns] = await pool.query('SHOW COLUMNS FROM users LIKE "admin_notes"');
-    if (columns.length === 0) {
-      await pool.query('ALTER TABLE users ADD COLUMN admin_notes JSON DEFAULT NULL');
-      console.log('Added admin_notes column to users table.');
-    }
 
-    // בדיקה אם העמודה cart קיימת
-    const [cartColumns] = await pool.query('SHOW COLUMNS FROM users LIKE "cart"');
-    if (cartColumns.length === 0) {
-      await pool.query('ALTER TABLE users ADD COLUMN cart JSON DEFAULT NULL');
-      console.log('Added cart column to users table.');
-    }
+
 
     // עדכון השדות maps ו-waze ל-TEXT
     await pool.query(`
@@ -238,10 +91,10 @@ module.exports = pool;
   } catch (err) {
     console.error('Error connecting to database:', err);
     console.error('Connection details:', {
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      database: process.env.DB_NAME,
-      port: process.env.DB_PORT
+      host: process.env.MYSQLHOST,
+      user: process.env.MYSQLUSER,
+      database: process.env.MYSQLDATABASE,
+      port: process.env.MYSQLPORT
     });
   }
 })();
