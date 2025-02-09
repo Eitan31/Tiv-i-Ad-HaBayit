@@ -22,11 +22,11 @@ app.use((req, res, next) => {
 
 // הגדרת חיבור לבסיס הנתונים
 const pool = mysql.createPool({
-    host: process.env.MYSQLHOST || 'viaduct.proxy.rlwy.net',
+    host: process.env.MYSQLHOST || 'localhost',
     user: process.env.MYSQLUSER || 'root',
-    password: process.env.MYSQLPASSWORD || 'kHOsqZVYcabXcgkQHFjkCgUvcSTruMnp',
-    database: process.env.MYSQLDATABASE || 'railway',
-    port: process.env.MYSQLPORT || 33431,
+    password: process.env.MYSQLPASSWORD || '',
+    database: process.env.MYSQLDATABASE || 'mystore',
+    port: process.env.MYSQLPORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -134,10 +134,10 @@ const executeQuery = async (query, params = []) => {
     } catch (error) {
         console.error('❌ שגיאה בהתחברות לבסיס הנתונים:', error);
         console.error('פרטי חיבור:', {
-            host: process.env.MYSQLHOST || 'viaduct.proxy.rlwy.net',
+            host: process.env.MYSQLHOST || 'localhost',
             user: process.env.MYSQLUSER || 'root',
-            database: process.env.MYSQLDATABASE || 'railway',
-            port: process.env.MYSQLPORT || 33431
+            database: process.env.MYSQLDATABASE || 'mystore',
+            port: process.env.MYSQLPORT || 3306
         });
     }
 })();
