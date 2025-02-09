@@ -23,19 +23,13 @@ app.use((req, res, next) => {
 // הגדרת חיבור לבסיס הנתונים
 const pool = mysql.createPool({
     host: process.env.MYSQLHOST || 'localhost',
-    user: process.env.MYSQLUSER || 'root',
-    password: process.env.MYSQLPASSWORD || '',
+    user: process.env.MYSQLUSER || 'Eitan',
+    password: process.env.MYSQLPASSWORD || 'Eitan3187',
     database: process.env.MYSQLDATABASE || 'mystore',
     port: process.env.MYSQLPORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0,
-    connectTimeout: 60000,
-    acquireTimeout: 60000,
-    timeout: 60000,
-    charset: 'utf8mb4'
+    queueLimit: 0
 });
 
 // פונקציה לביצוע שאילתה עם ניסיון חיבור מחדש
